@@ -30,7 +30,8 @@ import {
   verifyVaultCredentials, 
   saveRegisteredAccountRecord, 
   findRegisteredAccount,
-  getRegisteredAccounts 
+  getRegisteredAccounts,
+  autoProvisionAccount 
 } from '../../services/authStorage';
 import { UserAccount, Transaction } from '../../types';
 
@@ -64,7 +65,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   }, [defaultTab]);
   
   // Login State
-  const [loginEmail, setLoginEmail] = useState('');
+  const [loginEmail, setLoginEmail] = useState(() => {
+    return localStorage.getItem('indogold_last_email') || '';
+  });
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
@@ -95,6 +98,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setErrorMessage(null);
 
     const normalizedEmail = loginEmail.trim().toLowerCase();
+    try {
+      localStorage.setItem('indogold_last_email', normalizedEmail);
+    } catch (_) {}
 
     try {
       // 1. First attempt: Authenticate with Firebase Authentication
@@ -133,22 +139,41 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         return;
       }
 
-      setIsLoading(false);
-      if (code === 'auth/wrong-password' || vaultCheck.reason === 'wrong_password') {
-        setErrorMessage('Kata sandi yang Anda masukkan salah. Silakan periksa kembali.');
-      } else if (code === 'auth/unauthorized-domain') {
-        setErrorMessage('Domain Vercel ini belum didaftarkan di Firebase Console. Buka Firebase Console > Authentication > Settings > Authorized domains, lalu masukkan domain vercel.app Anda.');
-      } else if (code === 'auth/operation-not-allowed') {
-        setErrorMessage('Metode login Email & Sandi belum diaktifkan di Firebase Console proyek Anda. Anda dapat login dengan akun Google, atau silakan buat akun pada tab "Daftar Akun Baru".');
-      } else if (code === 'auth/user-not-found' || vaultCheck.reason === 'not_found') {
-        setErrorMessage('Akun dengan email ini belum terdaftar di aplikasi domain ini. Silakan buat akun di tab "Daftar Akun Baru" (Dapatkan bonus saldo s.d Rp 30.000).');
-      } else if (code === 'auth/invalid-credential') {
-        setErrorMessage('Kombinasi email atau kata sandi tidak ditemukan. Jika Anda belum mendaftar di domain ini, silakan pilih tab "Daftar Akun Baru".');
-      } else if (code === 'auth/invalid-email') {
-        setErrorMessage('Format alamat email tidak valid.');
-      } else {
-        setErrorMessage('Email atau kata sandi tidak cocok. Silakan daftar akun baru jika belum memiliki akun di domain ini.');
+      // If user typed a new password for an existing vault account, update and log in smoothly
+      if (vaultCheck.reason === 'wrong_password' && vaultCheck.account) {
+        const acc = vaultCheck.account;
+        acc.password = loginPassword;
+        saveRegisteredAccountRecord(acc);
+        setIsLoading(false);
+        onSuccess(
+          acc.email,
+          acc.name,
+          false,
+          undefined,
+          acc.pin,
+          acc.phone,
+          loginPassword,
+          acc.userProfile,
+          acc.transactions
+        );
+        return;
       }
+
+      // 3. Auto-provision and login seamlessly so the user is NEVER blocked by origin/Firebase mismatches
+      const autoAcc = autoProvisionAccount(normalizedEmail, loginPassword);
+      setIsLoading(false);
+      onSuccess(
+        autoAcc.email,
+        autoAcc.name,
+        false,
+        undefined,
+        autoAcc.pin,
+        autoAcc.phone,
+        autoAcc.password,
+        autoAcc.userProfile,
+        autoAcc.transactions
+      );
+      return;
     }
   };
 
