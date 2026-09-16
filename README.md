@@ -53,10 +53,27 @@ vercel --prod
 
 ---
 
-## 3. PENTING: Autentikasi Firebase di Domain Vercel
-Karena aplikasi menggunakan Firebase Auth & Firestore:
+## 3. PENTING: Penyebab & Solusi Jika Tidak Bisa Login di Vercel
+
+Jika setelah deploy Anda mencoba login dengan akun yang sebelumnya didaftarkan tetapi muncul pesan gagal, ini disebabkan oleh 2 hal standar keamanan Firebase:
+
+### Penyebab 1: Email/Password Sign-In Belum Diaktifkan di Firebase Console
+Secara default, Firebase hanya mengaktifkan Google Login. Untuk mengizinkan pengguna mendaftar dan masuk menggunakan Email & Password:
 1. Buka [Firebase Console](https://console.firebase.google.com).
-2. Pilih project: `ethereal-episode-mvxch`.
-3. Masuk ke menu **Authentication** > tab **Settings** > **Authorized domains**.
-4. Klik **Add domain**, lalu masukkan domain Vercel Anda (misalnya: `indogold-app.vercel.app` atau `*.vercel.app`).
-5. Dengan begitu, fitur login dan sinkronisasi database Firestore akan berfungsi dengan lancar di domain publik Vercel Anda.
+2. Pilih project Anda: **`ethereal-episode-mvxch`**.
+3. Buka menu **Authentication** > tab **Sign-in method**.
+4. Klik **Email/Password** pada daftar penyedia (*Sign-in providers*).
+5. Geser sakelar ke **Enable** (Aktifkan), lalu klik **Save** (Simpan).
+
+### Penyebab 2: Domain Vercel Belum Masuk ke "Authorized Domains" Firebase
+Firebase Authentication memblokir request autentikasi dari domain publik baru demi keamanan:
+1. Di Firebase Console, tetap di menu **Authentication** > klik tab **Settings**.
+2. Gulir ke bagian **Authorized domains**.
+3. Klik tombol **Add domain**.
+4. Masukkan domain Vercel Anda (misalnya: `nama-aplikasi-anda.vercel.app`), lalu klik **Done / Save**.
+
+### Penyebab 3: Akun Baru di Domain Vercel (Origin Isolation)
+Penyimpanan peramban (localStorage) terisolasi antara domain preview dan domain Vercel Anda:
+* Di domain Vercel Anda yang baru, cukup klik tab **"Daftar Akun Baru"** untuk membuat akun pertama Anda (langsung mendapatkan bonus saldo tunai hingga Rp 30.000).
+* Atau Anda juga dapat mengklik tombol **"⚡ Gunakan Akun Demo (1-Klik Isi)"** pada layar login untuk masuk seketika.
+* Setelah mendaftar atau masuk sekali di domain Vercel tersebut, akun dan brankas lokal akan tersimpan permanen sehingga Anda dapat keluar dan masuk kembali kapan pun.

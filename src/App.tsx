@@ -30,6 +30,10 @@ import {
   subscribeToUserProfile, 
   subscribeToUserTransactions 
 } from './services/databaseService';
+import { 
+  saveRegisteredAccountRecord, 
+  findRegisteredAccount 
+} from './services/authStorage';
 
 export default function App() {
   const [user, setUser] = useState<UserAccount>(() => {
@@ -115,10 +119,20 @@ export default function App() {
     };
   }, [firebaseUser]);
 
-  // Fallback sync to localStorage
+  // Fallback sync to localStorage and local vault
   useEffect(() => {
     localStorage.setItem('indogold_user', JSON.stringify(user));
-  }, [user]);
+    if (user.email) {
+      const existingAcc = findRegisteredAccount(user.email);
+      if (existingAcc) {
+        saveRegisteredAccountRecord({
+          ...existingAcc,
+          userProfile: user,
+          transactions: transactions
+        });
+      }
+    }
+  }, [user, transactions]);
 
   useEffect(() => {
     localStorage.setItem('indogold_txs', JSON.stringify(transactions));
@@ -242,7 +256,10 @@ export default function App() {
     isNewRegistration?: boolean, 
     referralCodeUsed?: string,
     initialPin?: string,
-    phone?: string
+    phone?: string,
+    passwordUsed?: string,
+    restoredProfile?: UserAccount,
+    restoredTransactions?: Transaction[]
   ) => {
     let bonusAmount = 0;
     const bonusDescriptions: string[] = [];
@@ -310,6 +327,18 @@ export default function App() {
       setUser(newUserProfile);
       setTransactions(newTransactionsList);
 
+      // Save to local vault immediately so user can log back in anytime on this origin
+      saveRegisteredAccountRecord({
+        email,
+        password: passwordUsed || '123456',
+        name,
+        phone: phone || '+62 812-3456-7890',
+        pin: initialPin || '123456',
+        userProfile: newUserProfile,
+        transactions: newTransactionsList,
+        updatedAt: Date.now()
+      });
+
       if (currentFbUser?.uid) {
         try {
           await saveUserProfile(currentFbUser.uid, newUserProfile);
@@ -324,7 +353,12 @@ export default function App() {
       showToast(`Selamat datang ${name}! Saldo Anda telah terisi ${bonusDescriptions.join(' + ')} (Total Rp ${bonusAmount.toLocaleString('id-ID')})!`);
     } else {
       // Existing user login
-      if (currentFbUser) {
+      if (restoredProfile) {
+        setUser(restoredProfile);
+        if (restoredTransactions && restoredTransactions.length > 0) {
+          setTransactions(restoredTransactions);
+        }
+      } else if (currentFbUser) {
         try {
           const synced = await syncUserProfile(currentFbUser, name, false, undefined);
           setUser(synced);
@@ -332,11 +366,19 @@ export default function App() {
           console.warn('Error syncing profile from auth success:', err);
         }
       } else {
-        setUser((prev) => ({
-          ...prev,
-          email,
-          name: name || prev.name,
-        }));
+        const found = findRegisteredAccount(email);
+        if (found) {
+          setUser(found.userProfile);
+          if (found.transactions && found.transactions.length > 0) {
+            setTransactions(found.transactions);
+          }
+        } else {
+          setUser((prev) => ({
+            ...prev,
+            email,
+            name: name || prev.name,
+          }));
+        }
       }
       showToast(`Selamat datang kembali di IndoGold, ${name}!`);
     }

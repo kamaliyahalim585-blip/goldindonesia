@@ -17,7 +17,7 @@ import {
   LogIn,
   UserPlus
 } from 'lucide-react';
-import { APP_IMAGES, INITIAL_USER } from '../../data/mockData';
+import { APP_IMAGES, INITIAL_USER, INITIAL_TRANSACTIONS } from '../../data/mockData';
 import { 
   auth, 
   googleProvider, 
@@ -26,6 +26,13 @@ import {
   createUserWithEmailAndPassword, 
   updateProfile 
 } from '../../lib/firebase';
+import { 
+  verifyVaultCredentials, 
+  saveRegisteredAccountRecord, 
+  findRegisteredAccount,
+  getRegisteredAccounts 
+} from '../../services/authStorage';
+import { UserAccount, Transaction } from '../../types';
 
 interface AuthScreenProps {
   onSuccess: (
@@ -34,7 +41,10 @@ interface AuthScreenProps {
     isNewRegistration?: boolean, 
     referralCodeUsed?: string,
     initialPin?: string,
-    phone?: string
+    phone?: string,
+    passwordUsed?: string,
+    restoredProfile?: UserAccount,
+    restoredTransactions?: Transaction[]
   ) => void;
   onClose?: () => void;
   isModal?: boolean;
@@ -84,27 +94,60 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setIsLoading(true);
     setErrorMessage(null);
 
+    const normalizedEmail = loginEmail.trim().toLowerCase();
+
     try {
-      const res = await signInWithEmailAndPassword(auth, loginEmail.trim(), loginPassword);
+      // 1. First attempt: Authenticate with Firebase Authentication
+      const res = await signInWithEmailAndPassword(auth, normalizedEmail, loginPassword);
       const fbUser = res.user;
       setIsLoading(false);
       onSuccess(
-        fbUser.email || loginEmail.trim(),
+        fbUser.email || normalizedEmail,
         fbUser.displayName || 'Investor IndoGold',
         false,
-        undefined
+        undefined,
+        undefined,
+        undefined,
+        loginPassword
       );
     } catch (authErr: any) {
-      setIsLoading(false);
       const code = authErr?.code || '';
-      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+      console.warn('Firebase login attempt notice:', code, authErr);
+
+      // 2. Check local secure vault for registered account on this browser / deployment
+      const vaultCheck = verifyVaultCredentials(normalizedEmail, loginPassword);
+      if (vaultCheck.success && vaultCheck.account) {
+        setIsLoading(false);
+        const acc = vaultCheck.account;
+        onSuccess(
+          acc.email,
+          acc.name,
+          false,
+          undefined,
+          acc.pin,
+          acc.phone,
+          acc.password,
+          acc.userProfile,
+          acc.transactions
+        );
+        return;
+      }
+
+      setIsLoading(false);
+      if (code === 'auth/wrong-password' || vaultCheck.reason === 'wrong_password') {
         setErrorMessage('Kata sandi yang Anda masukkan salah. Silakan periksa kembali.');
-      } else if (code === 'auth/user-not-found') {
-        setErrorMessage('Akun dengan email ini belum terdaftar. Silakan pilih tab "Daftar Akun Baru".');
+      } else if (code === 'auth/unauthorized-domain') {
+        setErrorMessage('Domain Vercel ini belum didaftarkan di Firebase Console. Buka Firebase Console > Authentication > Settings > Authorized domains, lalu masukkan domain vercel.app Anda.');
+      } else if (code === 'auth/operation-not-allowed') {
+        setErrorMessage('Metode login Email & Sandi belum diaktifkan di Firebase Console proyek Anda. Anda dapat login dengan akun Google, atau silakan buat akun pada tab "Daftar Akun Baru".');
+      } else if (code === 'auth/user-not-found' || vaultCheck.reason === 'not_found') {
+        setErrorMessage('Akun dengan email ini belum terdaftar di aplikasi domain ini. Silakan buat akun di tab "Daftar Akun Baru" (Dapatkan bonus saldo s.d Rp 30.000).');
+      } else if (code === 'auth/invalid-credential') {
+        setErrorMessage('Kombinasi email atau kata sandi tidak ditemukan. Jika Anda belum mendaftar di domain ini, silakan pilih tab "Daftar Akun Baru".');
       } else if (code === 'auth/invalid-email') {
         setErrorMessage('Format alamat email tidak valid.');
       } else {
-        setErrorMessage('Email atau kata sandi tidak cocok. Silakan daftar akun baru jika belum memiliki akun.');
+        setErrorMessage('Email atau kata sandi tidak cocok. Silakan daftar akun baru jika belum memiliki akun di domain ini.');
       }
     }
   };
@@ -131,10 +174,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     }
 
     setIsLoading(true);
+    const normalizedEmail = regEmail.trim().toLowerCase();
 
     try {
       try {
-        const userCredential = await createUserWithEmailAndPassword(auth, regEmail.trim(), regPassword);
+        const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, regPassword);
         if (userCredential.user) {
           await updateProfile(userCredential.user, { displayName: regName.trim() });
         }
@@ -152,18 +196,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           setIsLoading(false);
           setErrorMessage('Format alamat email tidak valid.');
           return;
+        } else if (code === 'auth/unauthorized-domain') {
+          console.warn('Firebase unauthorized domain fallback to local vault:', authErr);
+        } else if (code === 'auth/operation-not-allowed') {
+          console.warn('Firebase email/password provider not enabled in console, falling back to local vault:', authErr);
         }
         console.info('Firebase register notice:', authErr);
       }
 
       setIsLoading(false);
       onSuccess(
-        regEmail.trim(),
+        normalizedEmail,
         regName.trim(),
         true, // isNewRegistration
         regReferral.trim() ? regReferral.trim().toUpperCase() : undefined,
         regPin,
-        regPhone.trim() || undefined
+        regPhone.trim() || undefined,
+        regPassword
       );
     } catch (err) {
       setIsLoading(false);
@@ -187,7 +236,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     } catch (err: any) {
       setIsLoading(false);
       console.warn('Google sign in popup notice:', err);
-      setErrorMessage('Login dengan Google dibatalkan atau jendela popup ditutup. Silakan coba lagi.');
+      const code = err?.code || '';
+      if (code === 'auth/unauthorized-domain') {
+        setErrorMessage('Domain Vercel ini belum diizinkan di Firebase Authentication. Masuk ke Firebase Console > Authentication > Settings > Authorized domains, lalu masukkan domain vercel.app Anda.');
+      } else if (code === 'auth/popup-blocked') {
+        setErrorMessage('Jendela popup diblokir oleh browser Anda. Mohon izinkan popup untuk situs ini.');
+      } else {
+        setErrorMessage('Login dengan Google dibatalkan atau jendela popup ditutup. Silakan coba lagi.');
+      }
     }
   };
 
@@ -347,6 +403,51 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 <span>Masuk ke IndoGold</span>
                 <ArrowRight className="w-4 h-4 stroke-[2.5]" />
               </button>
+
+              {/* Quick Helper / Demo Credentials for Testing on Vercel */}
+              <div className="pt-2 flex flex-col gap-2">
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginEmail('investor@indogold.id');
+                      setLoginPassword('indogold2026');
+                      setErrorMessage(null);
+                      // Ensure demo account exists in vault
+                      if (!findRegisteredAccount('investor@indogold.id')) {
+                        saveRegisteredAccountRecord({
+                          email: 'investor@indogold.id',
+                          password: 'indogold2026',
+                          name: 'Investor VIP IndoGold',
+                          phone: '+62 812-9988-7766',
+                          pin: '123456',
+                          userProfile: {
+                            ...INITIAL_USER,
+                            name: 'Investor VIP IndoGold',
+                            email: 'investor@indogold.id'
+                          },
+                          transactions: INITIAL_TRANSACTIONS,
+                          updatedAt: Date.now()
+                        });
+                      }
+                    }}
+                    className="text-[11px] text-[#A0988C] hover:text-[#D4AF37] underline transition cursor-pointer"
+                  >
+                    ⚡ Gunakan Akun Demo (1-Klik Isi)
+                  </button>
+                  <span className="text-[#3A352F] text-xs">•</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('register');
+                      setErrorMessage(null);
+                    }}
+                    className="text-[11px] text-[#D4AF37] hover:underline transition cursor-pointer font-medium"
+                  >
+                    Daftar Akun Baru
+                  </button>
+                </div>
+              </div>
             </form>
           )}
 
