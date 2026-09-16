@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account profile, gold holdings, and cash balance",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Firebase Auth user UID" },
+        "name": { "type": "string", "description": "Full name of the user" },
+        "email": { "type": "string", "description": "Email address" },
+        "phone": { "type": "string", "description": "Indonesian phone number" },
+        "referralCode": { "type": "string", "description": "Unique referral code for the user" },
+        "kycVerified": { "type": "boolean", "description": "Whether user passed KTP identity verification" },
+        "balanceIdr": { "type": "number", "description": "Cash balance in Indonesian Rupiah" },
+        "goldHoldingsGram": { "type": "number", "description": "Total fine gold holdings in grams" },
+        "biometricEnabled": { "type": "boolean", "description": "Biometric authentication toggle" },
+        "pinSet": { "type": "boolean", "description": "Whether transaction security PIN is established" },
+        "signupBonusReceived": { "type": "boolean", "description": "Whether initial registration bonus was credited" },
+        "dailyProfitEarnedTotal": { "type": "number", "description": "Cumulative 3% daily yield earnings in IDR" },
+        "lastDailyProfitClaimDate": { "type": "string", "description": "ISO date of the last daily profit claim (YYYY-MM-DD)" },
+        "referralCount": { "type": "number", "description": "Count of successful user invitations" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of account creation" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last update" }
+      },
+      "required": ["id", "name", "email", "balanceIdr", "goldHoldingsGram"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial ledger of gold purchase, sale, deposit, or withdrawal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique transaction code" },
+        "userId": { "type": "string", "description": "Owner UID who initiated the transaction" },
+        "category": { "type": "string", "description": "Transaction category", "enum": ["beli", "jual", "deposit", "tarik"] },
+        "title": { "type": "string", "description": "Human readable title" },
+        "amountIdr": { "type": "number", "description": "Value in Indonesian Rupiah" },
+        "grams": { "type": "number", "description": "Weight of gold traded in grams" },
+        "brand": { "type": "string", "description": "Gold producer brand code" },
+        "brandName": { "type": "string", "description": "Gold producer brand name" },
+        "date": { "type": "string", "description": "Display date string" },
+        "timestamp": { "type": "number", "description": "Epoch timestamp in milliseconds" },
+        "status": { "type": "string", "description": "Status", "enum": ["Approved", "Pending", "Rejected"] },
+        "paymentMethod": { "type": "string", "description": "Selected payment gateway or method" },
+        "taxOrFee": { "type": "number", "description": "Applicable PPh/PPN tax or fee in IDR" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["id", "userId", "category", "title", "amountIdr", "timestamp", "status", "paymentMethod"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document containing balance and settings"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Global transactions collection keyed by transaction ID"
+    }
+  }
+}

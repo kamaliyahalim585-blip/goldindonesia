@@ -1,0 +1,7 @@
+{
+  "name": "IndoGold",
+  "description": "Platform investasi emas digital premium dan terpercaya dengan harga live, transaksi instan, dan portofolio aman.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
