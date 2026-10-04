@@ -32,7 +32,7 @@ export const TransactionReceiptModal: React.FC<TransactionReceiptModalProps> = (
 
   const statusConfig = {
     Approved: {
-      label: 'Berhasil (Approved)',
+      label: 'Disetujui (Approved)',
       bg: 'bg-[#2E5C3E]/30',
       text: 'text-[#8CEB9C]',
       border: 'border-[#2E5C3E]',
@@ -213,7 +213,7 @@ export const TransactionReceiptModal: React.FC<TransactionReceiptModalProps> = (
           <div className="p-3 rounded-xl bg-[#26231F]/70 border border-[#2E2A26] flex items-start gap-2.5 mt-3">
             <ShieldCheck className="w-4 h-4 text-[#D4AF37] shrink-0 mt-0.5" />
             <p className="text-[11px] text-[#9E978E] leading-relaxed">
-              Transaksi ini tersimpan pada buku besar terenkripsi IndoGold dan dijamin dengan fisik emas murni 24 Karat berstandar SNI/LBMA.
+              Transaksi ini tersimpan pada buku besar terenkripsi NusantaraGold dan dijamin dengan fisik emas murni 24 Karat berstandar SNI/LBMA.
             </p>
           </div>
 

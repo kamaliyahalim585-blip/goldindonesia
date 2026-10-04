@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import { 
   getFirestore, 
+  initializeFirestore,
   doc, 
   setDoc, 
   getDoc, 
@@ -21,7 +22,10 @@ import {
   query, 
   where, 
   orderBy, 
-  onSnapshot 
+  onSnapshot,
+  getDocs,
+  deleteDoc,
+  limit
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -29,7 +33,10 @@ import firebaseConfig from '../../firebase-applet-config.json';
 const app = initializeApp(firebaseConfig);
 
 // CRITICAL: Initialize Firestore using the specific databaseId configured in firebase-applet-config.json
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Enable experimentalAutoDetectLongPolling to ensure resilient connectivity across iframes and proxies
+export const db = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+}, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
@@ -88,11 +95,13 @@ export async function testFirestoreConnection(): Promise<boolean> {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
     return true;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firestore is currently offline or connecting...');
+  } catch (error: any) {
+    const msg = error?.message || String(error);
+    const code = error?.code || '';
+    if (code === 'unavailable' || msg.includes('offline') || msg.includes('unavailable')) {
+      console.info('Cloud Firestore connecting in background (offline persistence active).');
     } else {
-      console.info('Firestore connection checked (online)');
+      console.info('Firestore connection checked:', code || 'ok');
     }
     return false;
   }
@@ -113,6 +122,9 @@ export {
   query,
   where,
   orderBy,
-  onSnapshot
+  onSnapshot,
+  getDocs,
+  deleteDoc,
+  limit
 };
 export type { FirebaseUser };

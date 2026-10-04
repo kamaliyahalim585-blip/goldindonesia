@@ -15,8 +15,10 @@ import {
   Eye, 
   EyeOff,
   LogIn,
-  UserPlus
+  UserPlus,
+  Check
 } from 'lucide-react';
+import nusantaragoldLogo from '../../assets/images/nusantaragold_logo_1791089607884.jpg';
 import { APP_IMAGES, INITIAL_USER, INITIAL_TRANSACTIONS } from '../../data/mockData';
 import { 
   auth, 
@@ -27,11 +29,10 @@ import {
   updateProfile 
 } from '../../lib/firebase';
 import { 
-  verifyVaultCredentials, 
   saveRegisteredAccountRecord, 
   findRegisteredAccount,
   getRegisteredAccounts,
-  autoProvisionAccount 
+  createAdminAccount 
 } from '../../services/authStorage';
 import { UserAccount, Transaction } from '../../types';
 
@@ -99,17 +100,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
     const normalizedEmail = loginEmail.trim().toLowerCase();
     try {
-      localStorage.setItem('indogold_last_email', normalizedEmail);
+      localStorage.setItem('nusantaragold_last_email', normalizedEmail);
     } catch (_) {}
 
     try {
-      // 1. First attempt: Authenticate with Firebase Authentication
+      // Validate credentials against Firebase Authentication
       const res = await signInWithEmailAndPassword(auth, normalizedEmail, loginPassword);
       const fbUser = res.user;
+
       setIsLoading(false);
       onSuccess(
         fbUser.email || normalizedEmail,
-        fbUser.displayName || 'Investor IndoGold',
+        fbUser.displayName || 'Investor NusantaraGold',
         false,
         undefined,
         undefined,
@@ -118,62 +120,52 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       );
     } catch (authErr: any) {
       const code = authErr?.code || '';
-      console.warn('Firebase login attempt notice:', code, authErr);
+      console.warn('Firebase login attempt failed:', code, authErr);
 
-      // 2. Check local secure vault for registered account on this browser / deployment
-      const vaultCheck = verifyVaultCredentials(normalizedEmail, loginPassword);
-      if (vaultCheck.success && vaultCheck.account) {
+      // When Firebase Email/Password provider is disabled in Firebase Console
+      if (code === 'auth/operation-not-allowed') {
+        const registered = findRegisteredAccount(normalizedEmail);
         setIsLoading(false);
-        const acc = vaultCheck.account;
+        if (!registered) {
+          setErrorMessage('Akun belum terdaftar. Silakan mendaftar akun baru terlebih dahulu.');
+          return;
+        }
+        if (registered.password && registered.password !== loginPassword) {
+          setErrorMessage('Kata sandi yang Anda masukkan salah. Silakan periksa kembali.');
+          return;
+        }
+
         onSuccess(
-          acc.email,
-          acc.name,
+          normalizedEmail,
+          registered.name || registered.userProfile?.name || 'Investor NusantaraGold',
           false,
           undefined,
-          acc.pin,
-          acc.phone,
-          acc.password,
-          acc.userProfile,
-          acc.transactions
-        );
-        return;
-      }
-
-      // If user typed a new password for an existing vault account, update and log in smoothly
-      if (vaultCheck.reason === 'wrong_password' && vaultCheck.account) {
-        const acc = vaultCheck.account;
-        acc.password = loginPassword;
-        saveRegisteredAccountRecord(acc);
-        setIsLoading(false);
-        onSuccess(
-          acc.email,
-          acc.name,
-          false,
           undefined,
-          acc.pin,
-          acc.phone,
+          undefined,
           loginPassword,
-          acc.userProfile,
-          acc.transactions
+          registered.userProfile,
+          registered.transactions
         );
         return;
       }
 
-      // 3. Auto-provision and login seamlessly so the user is NEVER blocked by origin/Firebase mismatches
-      const autoAcc = autoProvisionAccount(normalizedEmail, loginPassword);
       setIsLoading(false);
-      onSuccess(
-        autoAcc.email,
-        autoAcc.name,
-        false,
-        undefined,
-        autoAcc.pin,
-        autoAcc.phone,
-        autoAcc.password,
-        autoAcc.userProfile,
-        autoAcc.transactions
-      );
-      return;
+      // Strict validation: Do NOT auto-provision or grant access without valid credentials
+      if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+        setErrorMessage('Akun belum terdaftar atau kombinasi email dan kata sandi salah. Silakan periksa kembali atau mendaftar akun baru.');
+      } else if (code === 'auth/wrong-password') {
+        setErrorMessage('Kata sandi yang Anda masukkan salah. Silakan periksa kembali.');
+      } else if (code === 'auth/invalid-email') {
+        setErrorMessage('Format alamat email tidak valid.');
+      } else if (code === 'auth/user-disabled') {
+        setErrorMessage('Akun ini telah dinonaktifkan oleh administrator.');
+      } else if (code === 'auth/too-many-requests') {
+        setErrorMessage('Terlalu banyak percobaan masuk yang gagal. Silakan tunggu beberapa saat.');
+      } else if (code === 'auth/network-request-failed') {
+        setErrorMessage('Koneksi internet bermasalah. Pastikan perangkat Anda terhubung ke internet.');
+      } else {
+        setErrorMessage('Email atau kata sandi tidak valid. Pastikan Anda sudah mendaftar terlebih dahulu.');
+      }
     }
   };
 
@@ -198,38 +190,44 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       return;
     }
 
-    setIsLoading(true);
     const normalizedEmail = regEmail.trim().toLowerCase();
 
+    // Check if account already registered in vault
+    const existingVaultAccount = findRegisteredAccount(normalizedEmail);
+    if (existingVaultAccount) {
+      setErrorMessage('Email ini sudah terdaftar. Silakan pindah ke tab "Masuk (Login)".');
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
-      try {
-        const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, regPassword);
-        if (userCredential.user) {
-          await updateProfile(userCredential.user, { displayName: regName.trim() });
-        }
-      } catch (authErr: any) {
-        const code = authErr?.code || '';
-        if (code === 'auth/email-already-in-use') {
-          setIsLoading(false);
-          setErrorMessage('Email ini sudah terdaftar. Silakan pindah ke tab "Masuk (Login)".');
-          return;
-        } else if (code === 'auth/weak-password') {
-          setIsLoading(false);
-          setErrorMessage('Kata sandi terlalu lemah. Harap gunakan minimal 6 karakter.');
-          return;
-        } else if (code === 'auth/invalid-email') {
-          setIsLoading(false);
-          setErrorMessage('Format alamat email tidak valid.');
-          return;
-        } else if (code === 'auth/unauthorized-domain') {
-          console.warn('Firebase unauthorized domain fallback to local vault:', authErr);
-        } else if (code === 'auth/operation-not-allowed') {
-          console.warn('Firebase email/password provider not enabled in console, falling back to local vault:', authErr);
-        }
-        console.info('Firebase register notice:', authErr);
+      const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, regPassword);
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, { displayName: regName.trim() });
       }
 
+      // Also persist to registered vault for resilience
+      saveRegisteredAccountRecord({
+        email: normalizedEmail,
+        password: regPassword,
+        name: regName.trim(),
+        phone: regPhone.trim() || undefined,
+        pin: regPin,
+        userProfile: {
+          ...INITIAL_USER,
+          name: regName.trim(),
+          email: normalizedEmail,
+          phone: regPhone.trim() || '+62 812-3456-7890',
+          pinCode: regPin,
+          pinSet: true
+        },
+        transactions: INITIAL_TRANSACTIONS,
+        updatedAt: Date.now()
+      });
+
       setIsLoading(false);
+
       onSuccess(
         normalizedEmail,
         regName.trim(),
@@ -239,9 +237,56 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         regPhone.trim() || undefined,
         regPassword
       );
-    } catch (err) {
+    } catch (authErr: any) {
+      const code = authErr?.code || '';
+      console.warn('Firebase register failed:', code, authErr);
+
+      // Gracefully handle operation-not-allowed if Firebase Console Email/Password provider isn't enabled
+      if (code === 'auth/operation-not-allowed') {
+        saveRegisteredAccountRecord({
+          email: normalizedEmail,
+          password: regPassword,
+          name: regName.trim(),
+          phone: regPhone.trim() || undefined,
+          pin: regPin,
+          userProfile: {
+            ...INITIAL_USER,
+            name: regName.trim(),
+            email: normalizedEmail,
+            phone: regPhone.trim() || '+62 812-3456-7890',
+            pinCode: regPin,
+            pinSet: true
+          },
+          transactions: INITIAL_TRANSACTIONS,
+          updatedAt: Date.now()
+        });
+
+        setIsLoading(false);
+        onSuccess(
+          normalizedEmail,
+          regName.trim(),
+          true,
+          regReferral.trim() ? regReferral.trim().toUpperCase() : undefined,
+          regPin,
+          regPhone.trim() || undefined,
+          regPassword
+        );
+        return;
+      }
+
       setIsLoading(false);
-      setErrorMessage('Terjadi kendala teknis saat mendaftar. Silakan coba kembali.');
+
+      if (code === 'auth/email-already-in-use') {
+        setErrorMessage('Email ini sudah terdaftar. Silakan pindah ke tab "Masuk (Login)".');
+      } else if (code === 'auth/weak-password') {
+        setErrorMessage('Kata sandi terlalu lemah. Harap gunakan minimal 6 karakter.');
+      } else if (code === 'auth/invalid-email') {
+        setErrorMessage('Format alamat email tidak valid.');
+      } else if (code === 'auth/network-request-failed') {
+        setErrorMessage('Koneksi internet terputus. Pastikan perangkat Anda terhubung ke internet.');
+      } else {
+        setErrorMessage(authErr?.message || 'Terjadi kendala saat mendaftarkan akun di Firebase. Silakan coba kembali.');
+      }
     }
   };
 
@@ -254,7 +299,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       setIsLoading(false);
       onSuccess(
         user.email || '',
-        user.displayName || 'Investor IndoGold',
+        user.displayName || 'Investor NusantaraGold',
         false,
         undefined
       );
@@ -292,7 +337,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         <div className="relative z-20 flex flex-col items-center justify-center p-8 text-center my-auto bg-[#161412]/95 border border-[#3A3224] rounded-2xl shadow-2xl max-w-xs w-full">
           <div className="w-12 h-12 rounded-full border-2 border-[#4A3C13] border-t-[#D4AF37] animate-spin mb-4" />
           <h3 className="font-serif text-xl text-[#D4AF37]">Mengamankan Sesi</h3>
-          <p className="text-xs text-[#9E978E] mt-1">Menghubungkan ke brankas emas berenkripsi IndoGold...</p>
+          <p className="text-xs text-[#9E978E] mt-1">Menghubungkan ke brankas emas berenkripsi NusantaraGold...</p>
         </div>
       ) : (
         <div className="relative z-10 w-full max-w-md my-auto bg-[#141210]/95 border border-[#3A3224] rounded-3xl p-5 sm:p-7 shadow-2xl backdrop-blur-xl">
@@ -307,20 +352,29 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             </button>
           )}
 
-          {/* Brand Header */}
-          <div className="mb-4 text-center sm:text-left">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#2E2616] border border-[#D4AF37]/50 text-xs text-[#D4AF37] mb-2 shadow-sm">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Platform Investasi Emas 24K BAPPEBTI</span>
-            </div>
+          {/* Brand Header with Official NusantaraGold Logo */}
+          <div className="mb-4">
+            <div className="flex items-center gap-3.5">
+              <div className="relative group shrink-0">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] rounded-2xl blur-sm opacity-60 group-hover:opacity-100 transition duration-300 pointer-events-none" />
+                <img
+                  src={nusantaragoldLogo}
+                  alt="Logo Resmi Investasi NusantaraGold"
+                  className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-contain bg-black border border-[#D4AF37]/60 shadow-xl shadow-amber-500/20"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
 
-            <div className="flex items-center justify-between">
               <div>
-                <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#F7F5F2] tracking-tight">
-                  IndoGold
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#2E2616] border border-[#D4AF37]/50 text-[11px] text-[#D4AF37] mb-1 shadow-sm">
+                  <Sparkles className="w-3 h-3 text-[#D4AF37]" />
+                  <span>Platform Investasi Emas 24K BAPPEBTI</span>
+                </div>
+                <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#F7F5F2] tracking-tight">
+                  NusantaraGold
                 </h1>
-                <p className="text-xs text-[#A0988C] mt-0.5">
-                  Kemewahan investasi emas batangan fisik & digital terpercaya.
+                <p className="text-[11px] text-[#A0988C] mt-0.5 leading-snug">
+                  Investasi Hari Ini, Masa Depan Lebih Baik.
                 </p>
               </div>
             </div>
@@ -389,7 +443,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   <label className="text-xs text-[#C2BCB3] font-medium">Kata Sandi</label>
                   <button 
                     type="button" 
-                    onClick={() => setErrorMessage('Untuk pemulihan kata sandi, silakan hubungi Live Chat Prioritas IndoGold atau daftar dengan email baru.')}
+                    onClick={() => setErrorMessage('Untuk pemulihan kata sandi, silakan hubungi Live Chat Prioritas NusantaraGold atau daftar dengan email baru.')}
                     className="text-[11px] text-[#D4AF37] hover:underline cursor-pointer"
                   >
                     Lupa Sandi?
@@ -425,40 +479,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 type="submit"
                 className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] text-[#0F0E0D] font-bold text-xs tracking-wider uppercase flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#D4AF37]/20 hover:opacity-95 transition"
               >
-                <span>Masuk ke IndoGold</span>
+                <span>Masuk ke NusantaraGold</span>
                 <ArrowRight className="w-4 h-4 stroke-[2.5]" />
               </button>
 
-              {/* Quick Helper / Demo Credentials for Testing on Vercel */}
+              {/* Investor Demo & Register Link */}
               <div className="pt-2 flex flex-col gap-2">
-                <div className="flex items-center justify-center gap-2">
+                <div className="flex items-center justify-center gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => {
-                      setLoginEmail('investor@indogold.id');
-                      setLoginPassword('indogold2026');
+                      setLoginEmail('investor@nusantaragold.id');
+                      setLoginPassword('nusantaragold2026');
                       setErrorMessage(null);
-                      // Ensure demo account exists in vault
-                      if (!findRegisteredAccount('investor@indogold.id')) {
-                        saveRegisteredAccountRecord({
-                          email: 'investor@indogold.id',
-                          password: 'indogold2026',
-                          name: 'Investor VIP IndoGold',
-                          phone: '+62 812-9988-7766',
-                          pin: '123456',
-                          userProfile: {
-                            ...INITIAL_USER,
-                            name: 'Investor VIP IndoGold',
-                            email: 'investor@indogold.id'
-                          },
-                          transactions: INITIAL_TRANSACTIONS,
-                          updatedAt: Date.now()
-                        });
-                      }
                     }}
                     className="text-[11px] text-[#A0988C] hover:text-[#D4AF37] underline transition cursor-pointer"
                   >
-                    ⚡ Gunakan Akun Demo (1-Klik Isi)
+                    ⚡ Coba Akun Demo Investor
                   </button>
                   <span className="text-[#3A352F] text-xs">•</span>
                   <button
@@ -479,17 +516,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           {/* TAB 2: FORM PENDAFTARAN PENGGUNA BARU */}
           {activeTab === 'register' && (
             <form onSubmit={handleRegisterSubmit} className="space-y-3 animate-fade-in">
-              {/* Highlight Promo Card */}
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#2B2313] via-[#1E1911] to-[#161412] border-2 border-[#D4AF37]/50 shadow-md">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-bold">
-                      <Gift className="w-4 h-4" />
-                    </div>
-                    <span className="text-xs font-bold text-[#F7F5F2]">Paket Bonus Pengguna Baru</span>
+              {/* Highlight Promo Card with Official Logo Emblem */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#2B2313] via-[#1E1911] to-[#161412] border-2 border-[#D4AF37]/60 shadow-lg">
+                <div className="flex items-center gap-3 mb-2.5 pb-2.5 border-b border-[#3A3224]">
+                  <img
+                    src={nusantaragoldLogo}
+                    alt="Logo Investasi NusantaraGold"
+                    className="w-12 h-12 rounded-xl object-contain bg-black border border-[#D4AF37]/60 shadow-md shrink-0"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] uppercase tracking-wider text-amber-400 font-bold block">
+                      Pendaftaran Investor Baru
+                    </span>
+                    <h3 className="text-xs sm:text-sm font-bold text-[#F7F5F2] truncate">
+                      Investasi NusantaraGold 24K
+                    </h3>
+                    <p className="text-[10px] text-[#A0988C] truncate">
+                      Investasi Hari Ini, Masa Depan Lebih Baik
+                    </p>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/50 text-emerald-300 text-[10px] font-bold">
-                    Otomatis Cair
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/50 text-emerald-300 text-[10px] font-bold shrink-0">
+                    Bonus Otomatis
                   </span>
                 </div>
 
@@ -621,10 +669,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   </label>
                   <button
                     type="button"
-                    onClick={() => setRegReferral('INDOGOLD99')}
+                    onClick={() => setRegReferral('NUSANTARA99')}
                     className="text-[10px] text-[#D4AF37] hover:underline cursor-pointer"
                   >
-                    Gunakan Kode: INDOGOLD99
+                    Gunakan Kode: NUSANTARA99
                   </button>
                 </div>
                 <div className="relative">

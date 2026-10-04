@@ -1,4 +1,4 @@
-const CACHE_NAME = 'indogold-v1';
+const CACHE_NAME = 'nusantaragold-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

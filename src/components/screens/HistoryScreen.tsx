@@ -60,7 +60,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
       case 'Approved':
         return (
           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/70 text-emerald-300 border border-emerald-500/50 shadow-sm">
-            Berhasil
+            Disetujui
           </span>
         );
       case 'Pending':

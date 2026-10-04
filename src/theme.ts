@@ -1,5 +1,5 @@
 /**
- * IndoGold Design System Tokens
+ * NusantaraGold Design System Tokens
  * Archetype: 6 Glass / Luxe DARK
  * Primary Palette: Deep Charcoal (#0F0E0D) & Antique Gold (#D4AF37)
  */

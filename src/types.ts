@@ -14,6 +14,8 @@ export interface Transaction {
   id: string;
   category: TransactionCategory;
   title: string;
+  userId?: string;
+  userEmail?: string;
   brandCode?: string;
   brandName?: string;
   goldGrams?: number;
@@ -92,4 +94,35 @@ export interface UserAccount {
   dailyProfitEarnedTotal?: number;
   lastDailyProfitClaimDate?: string;
   referralCount?: number;
+  role?: 'user' | 'admin';
+}
+
+export interface ChatMessage {
+  id: string;
+  sender: 'user' | 'agent' | 'bot';
+  senderName?: string;
+  text: string;
+  time: string;
+  timestamp: number;
+}
+
+export interface ChatSession {
+  id: string;
+  userEmail: string;
+  userName: string;
+  userPhone?: string;
+  userGoldHoldings: number;
+  userBalanceIdr: number;
+  status: 'active' | 'pending' | 'resolved';
+  unreadByAdmin: number;
+  unreadByUser: number;
+  lastUpdated: number;
+  messages: ChatMessage[];
+}
+
+export interface GoldPriceConfig {
+  buyPrice: number;
+  sellPrice: number;
+  updatedAt: number;
+  updatedBy: string;
 }

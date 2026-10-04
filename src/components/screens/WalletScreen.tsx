@@ -14,7 +14,8 @@ import {
   CheckCircle2,
   Sparkles,
   Info,
-  ChevronDown
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { Transaction, UserAccount, WalletActionType } from '../../types';
 import { 
@@ -60,6 +61,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
   const [selectedDestination, setSelectedDestination] = useState<FinancialInstitution>(ALL_INDONESIAN_BANKS[0]);
   const [destinationAccount, setDestinationAccount] = useState<string>('8271 0812 3456');
   const [accountHolderName, setAccountHolderName] = useState<string>(user.name || '');
+  const [showMinWithdrawalNotice, setShowMinWithdrawalNotice] = useState<boolean>(false);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -112,8 +114,13 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
   });
 
   const handleWithdrawalSubmit = () => {
-    if (parsedAmount < 10000) {
-      setErrorMessage('Nominal penarikan minimal adalah Rp 10.000.');
+    if (parsedAmount < 100000) {
+      const minMsg = 'Syarat Penarikan: Nominal penarikan dana minimal adalah Rp 100.000.';
+      setErrorMessage(minMsg);
+      setShowMinWithdrawalNotice(true);
+      if (onShowToast) {
+        onShowToast('Pemberitahuan Sistem: Syarat penarikan dana tunai minimal adalah Rp 100.000');
+      }
       return;
     }
 
@@ -155,8 +162,10 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
         status: 'Pending',
         paymentMethod: `${selectedDestination.name} • ${destinationAccount.trim()}`,
         recipientName: accountHolderName.trim(),
+        senderName: user.name,
+        senderAccount: user.email,
         taxOrFee: 0,
-        notes: `Penarikan saldo kas ke ${selectedDestination.name} nomor ${destinationAccount.trim()} a.n. ${accountHolderName.trim()}`
+        notes: `Penarikan saldo kas ke ${selectedDestination.name} nomor ${destinationAccount.trim()} a.n. ${accountHolderName.trim()} (${user.email || 'Pengguna'})`
       };
 
       setIsProcessing(false);
@@ -254,7 +263,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
           <div className="p-3.5 rounded-xl bg-[#1B241C] border border-emerald-500/40 flex items-start gap-3">
             <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
             <div className="text-xs">
-              <span className="font-bold text-emerald-300 block">Metode Deposit Resmi IndoGold</span>
+              <span className="font-bold text-emerald-300 block">Metode Deposit Resmi NusantaraGold</span>
               <p className="text-[#C5D9C8] mt-0.5 leading-relaxed">
                 Deposit saldo tunai hanya dilayani melalui rekening resmi <strong>Bank Permata</strong> dan akun <strong>OVO</strong> atas nama <strong>muhammad yusuf amiinuddiin</strong>.
               </p>
@@ -456,7 +465,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
                 Nominal Penarikan Dana (IDR)
               </label>
               <span className="text-[11px] font-semibold text-purple-300 bg-purple-950/40 px-2 py-0.5 rounded border border-purple-500/30">
-                Min. Rp 10.000
+                Min. Rp 100.000
               </span>
             </div>
 
@@ -472,6 +481,25 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
                 className="w-full pl-12 pr-4 py-3.5 bg-[#0F0E0D] border border-[#2E2820] rounded-xl text-[#F7F5F2] text-xl font-mono font-bold focus:outline-none focus:border-purple-400 transition tabular-nums"
               />
             </div>
+
+            {/* Live Warning if below Rp 100.000 */}
+            {parsedAmount > 0 && parsedAmount < 100000 && (
+              <div className="p-3 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-200 text-xs flex items-center justify-between gap-2 animate-fade-in">
+                <div className="flex items-center gap-2 min-w-0">
+                  <AlertCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                  <span className="truncate">
+                    Syarat penarikan minimal: <strong>Rp 100.000</strong> (Kurang {formatIDR(100000 - parsedAmount)})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleQuickAmount(100000)}
+                  className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-500 to-fuchsia-600 text-white text-[11px] font-bold shrink-0 hover:brightness-110 transition cursor-pointer"
+                >
+                  Ubah Rp 100.000
+                </button>
+              </div>
+            )}
 
             {/* Quick Amount Chips */}
             <div>
@@ -712,6 +740,80 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
         onSuccess={handlePinVerifiedSuccess}
         onClose={() => setShowPinModal(false)}
       />
+
+      {/* Modal Notifikasi Syarat Penarikan Dana Minimal Rp 100.000 */}
+      {showMinWithdrawalNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-md bg-[#161412] border-2 border-purple-500/60 rounded-2xl overflow-hidden shadow-2xl animate-scale-up">
+            <div className="p-4 border-b border-[#2E2820] bg-gradient-to-r from-purple-950/40 via-[#1C1814] to-purple-950/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-400/50 flex items-center justify-center text-purple-300">
+                  <AlertCircle className="w-4 h-4 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-base font-bold text-[#F7F5F2]">Syarat Penarikan Dana</h3>
+                  <p className="text-[10px] text-purple-300 font-mono">Pemberitahuan Sistem Otomatis</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMinWithdrawalNotice(false)}
+                className="w-8 h-8 rounded-full bg-[#0F0E0D] border border-[#2E2820] flex items-center justify-center text-[#9E978E] hover:text-[#F7F5F2] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-5 space-y-3.5">
+              <div className="p-3.5 rounded-xl bg-purple-950/30 border border-purple-500/40 text-center space-y-1">
+                <span className="text-xs text-[#A0988C] block uppercase tracking-wider">Syarat Batas Minimal Penarikan</span>
+                <span className="text-2xl font-mono font-extrabold text-purple-300 block">
+                  Rp 100.000
+                </span>
+                <p className="text-xs text-[#EAE6E1] mt-1">
+                  Nominal yang diajukan: <strong className="text-rose-400">{formatIDR(parsedAmount)}</strong>
+                </p>
+              </div>
+
+              <div className="space-y-2 text-xs text-[#C7BEAF]">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
+                  <span><strong>Ketentuan Perbankan & Kliring</strong>: Sesuai regulasi sistem transfer BI-FAST dan kliring perbankan mitra, nominal penarikan dana tunai ditetapkan minimal <strong>Rp 100.000</strong> per transaksi.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                  <span><strong>Bebas Biaya Admin</strong>: Seluruh penarikan dana ke semua bank (BCA, Mandiri, BRI, BNI, dll) dan e-wallet (DANA, OVO, GoPay) adalah <strong>Gratis (Rp 0)</strong>.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
+                  <span><strong>Pemrosesan Otomatis</strong>: Sistem memproses pengiriman dana langsung 24 jam nonstop ke rekening tujuan Anda.</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleQuickAmount(100000);
+                    setShowMinWithdrawalNotice(false);
+                    setErrorMessage(null);
+                  }}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-500 to-fuchsia-600 text-white font-bold text-xs hover:brightness-110 transition shadow cursor-pointer text-center"
+                >
+                  Ubah ke Rp 100.000
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMinWithdrawalNotice(false)}
+                  className="py-2.5 px-4 rounded-xl bg-[#201D1A] border border-[#332C24] text-xs font-semibold text-[#A0988C] hover:text-[#F7F5F2] transition cursor-pointer"
+                >
+                  Saya Mengerti
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

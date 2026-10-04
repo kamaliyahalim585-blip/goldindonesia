@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, TrendingUp, ShieldCheck, Gift, Bell } from 'lucide-react';
+import { X, TrendingUp, ShieldCheck, Gift, Bell, WalletCards } from 'lucide-react';
 
 interface NotificationsModalProps {
   onClose: () => void;
@@ -7,6 +7,14 @@ interface NotificationsModalProps {
 
 export const NotificationsModal: React.FC<NotificationsModalProps> = ({ onClose }) => {
   const notifications = [
+    {
+      id: 0,
+      title: 'Syarat & Batas Minimal Penarikan Dana',
+      desc: 'Batas minimal penarikan dana tunai kas adalah Rp 100.000 per transaksi ke seluruh rekening bank & e-wallet tanpa biaya admin.',
+      time: 'Baru saja',
+      icon: WalletCards,
+      unread: true
+    },
     {
       id: 1,
       title: 'Kenaikan Harga Emas Harian',

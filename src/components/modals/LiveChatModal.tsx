@@ -7,15 +7,22 @@ import {
   Headphones, 
   Sparkles, 
   ShieldCheck, 
-  RefreshCw,
-  Clock,
-  CheckCheck
+  RefreshCw, 
+  Clock, 
+  CheckCheck,
+  ShieldAlert
 } from 'lucide-react';
 import { UserAccount } from '../../types';
+import { 
+  getOrCreateChatSession, 
+  sendUserChatMessage,
+  subscribeToUserChatSession
+} from '../../services/adminService';
 
 interface Message {
   id: string;
   sender: 'bot' | 'user' | 'agent';
+  senderName?: string;
   text: string;
   time: string;
   isQuickOption?: boolean;
@@ -40,25 +47,61 @@ export const LiveChatModal: React.FC<LiveChatModalProps> = ({
   onClose,
   onShowToast
 }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome-1',
-      sender: 'bot',
-      text: `Halo ${user.name.split(' ')[0] || 'Investor'}! Selamat datang di Layanan Live Chat Resmi IndoGold 24K. Petugas CS Prioritas dan Asisten kami siap membantu Anda 24 jam nonstop.`,
-      time: 'Baru saja'
-    },
-    {
-      id: 'welcome-2',
-      sender: 'bot',
-      text: 'Silakan ketik pertanyaan Anda atau pilih topik cepat berikut untuk respon instan:',
-      time: 'Baru saja'
-    }
-  ]);
+  const initialSession = getOrCreateChatSession(
+    user.email,
+    user.name,
+    user.goldHoldingsGram,
+    user.balanceIdr,
+    user.phone
+  );
+
+  const [messages, setMessages] = useState<Message[]>(
+    initialSession.messages.map((m) => ({
+      id: m.id,
+      sender: m.sender,
+      senderName: m.senderName,
+      text: m.text,
+      time: m.time
+    }))
+  );
 
   const [inputVal, setInputVal] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [agentName, setAgentName] = useState('Putri • Tim CS Prioritas IndoGold');
+  const [agentName, setAgentName] = useState('Putri • CS Prioritas NusantaraGold');
   const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  // Real-time Firestore sync to catch live Admin replies instantly
+  useEffect(() => {
+    const unsub = subscribeToUserChatSession(user.email, (liveSession) => {
+      if (liveSession && liveSession.messages && liveSession.messages.length > 0) {
+        setMessages(liveSession.messages.map((m) => ({
+          id: m.id,
+          sender: m.sender,
+          senderName: m.senderName,
+          text: m.text,
+          time: m.time
+        })));
+      }
+    });
+
+    const checkInterval = setInterval(() => {
+      const sess = getOrCreateChatSession(user.email, user.name, user.goldHoldingsGram, user.balanceIdr, user.phone);
+      if (sess.messages.length > messages.length) {
+        setMessages(sess.messages.map((m) => ({
+          id: m.id,
+          sender: m.sender,
+          senderName: m.senderName,
+          text: m.text,
+          time: m.time
+        })));
+      }
+    }, 3000);
+
+    return () => {
+      if (typeof unsub === 'function') unsub();
+      clearInterval(checkInterval);
+    };
+  }, [user.email, user.name, user.goldHoldingsGram, user.balanceIdr, user.phone]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -81,35 +124,48 @@ export const LiveChatModal: React.FC<LiveChatModalProps> = ({
     if (q.includes('pin') || q.includes('password') || q.includes('sandi') || q.includes('keamanan')) {
       return 'PIN keamanan 6-digit dapat diubah kapan saja melalui menu "Keamanan & Proteksi Transaksi" di tab Akun. PIN ini wajib untuk setiap penarikan saldo dan perubahan profil demi melindungi aset emas Anda.';
     }
-    return `Terima kasih pesan Anda: "${query}". Pesan Anda telah kami teruskan ke petugas ${agentName}. Saldo kas dan kepemilikan ${user.goldHoldingsGram.toFixed(4)} gr emas Anda terpantau aman dalam sistem kustodi terenkripsi BAPPEBTI. Ada hal lain yang bisa kami bantu?`;
+    return `Terima kasih pesan Anda: "${query}". Pesan Anda telah diteruskan ke Admin NusantaraGold. Saldo kas ${user.balanceIdr.toLocaleString('id-ID')} dan kepemilikan ${user.goldHoldingsGram.toFixed(4)} gr emas Anda aman dalam kustodi terenkripsi BAPPEBTI.`;
   };
 
   const handleSendMessage = (textToSend?: string) => {
     const text = (textToSend || inputVal).trim();
     if (!text) return;
 
-    const newMsg: Message = {
-      id: `msg-${Date.now()}`,
-      sender: 'user',
+    // Send to central admin storage and Firestore
+    const updatedSess = sendUserChatMessage(
+      user.email,
+      user.name,
       text,
-      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-    };
+      user.goldHoldingsGram,
+      user.balanceIdr,
+      user.phone
+    );
 
-    setMessages((prev) => [...prev, newMsg]);
+    setMessages(updatedSess.messages.map((m) => ({
+      id: m.id,
+      sender: m.sender,
+      senderName: m.senderName,
+      text: m.text,
+      time: m.time
+    })));
+
     if (!textToSend) setInputVal('');
 
+    // Optional quick auto-reply if user asks common question
     setIsTyping(true);
     setTimeout(() => {
       setIsTyping(false);
       const replyText = getAutoResponse(text);
-      const replyMsg: Message = {
+      // add bot response directly to state
+      const botMsg: Message = {
         id: `reply-${Date.now()}`,
         sender: 'agent',
+        senderName: 'Asisten Otomatis CS',
         text: replyText,
         time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
       };
-      setMessages((prev) => [...prev, replyMsg]);
-    }, 900);
+      setMessages((prev) => [...prev, botMsg]);
+    }, 1000);
   };
 
   return (
@@ -126,7 +182,7 @@ export const LiveChatModal: React.FC<LiveChatModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-serif text-sm font-bold text-[#F7F5F2]">Live Chat Prioritas IndoGold</h3>
+                <h3 className="font-serif text-sm font-bold text-[#F7F5F2]">Live Chat Prioritas NusantaraGold</h3>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-emerald-300">
                   Online
                 </span>
@@ -177,10 +233,18 @@ export const LiveChatModal: React.FC<LiveChatModalProps> = ({
                 )}
 
                 <div>
+                  {m.sender === 'agent' && (
+                    <div className="flex items-center gap-1 mb-1 text-[10px] text-amber-300 font-bold">
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span>Admin Super NusantaraGold</span>
+                    </div>
+                  )}
                   <div
                     className={`p-3 rounded-2xl text-xs leading-relaxed ${
                       isUser
                         ? 'bg-gradient-to-r from-[#D4AF37] to-[#C49B27] text-[#0F0E0D] font-medium rounded-tr-none shadow-md shadow-[#D4AF37]/10'
+                        : m.sender === 'agent'
+                        ? 'bg-gradient-to-br from-[#251E14] to-[#171410] border border-amber-500/50 text-[#EDE8E1] rounded-tl-none shadow-md'
                         : 'bg-[#1E1B17] border border-[#3A3224] text-[#EDE8E1] rounded-tl-none'
                     }`}
                   >

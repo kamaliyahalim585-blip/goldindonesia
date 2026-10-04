@@ -8,6 +8,7 @@ import { WalletScreen } from './components/screens/WalletScreen';
 import { HistoryScreen } from './components/screens/HistoryScreen';
 import { AccountScreen } from './components/screens/AccountScreen';
 import { AuthScreen } from './components/screens/AuthScreen';
+import { StandaloneAdminPortal } from './components/screens/StandaloneAdminPortal';
 import { TransactionReceiptModal } from './components/TransactionReceiptModal';
 import { NotificationsModal } from './components/NotificationsModal';
 import { ActiveModals, ActiveModalType } from './components/ActiveModals';
@@ -28,12 +29,20 @@ import {
   saveUserProfile, 
   saveTransaction, 
   subscribeToUserProfile, 
-  subscribeToUserTransactions 
+  subscribeToUserTransactions,
+  encodeChatId,
+  extractCleanEmail
 } from './services/databaseService';
 import { 
   saveRegisteredAccountRecord, 
   findRegisteredAccount 
 } from './services/authStorage';
+import { 
+  isUserAdmin, 
+  recordPlatformTransaction,
+  getAllPlatformTransactions,
+  INDOGOLD_SYNC_EVENT
+} from './services/adminService';
 
 export default function App() {
   const [user, setUser] = useState<UserAccount>(() => {
@@ -66,73 +75,212 @@ export default function App() {
   const [walletAction, setWalletAction] = useState<WalletActionType>('deposit');
   const [selectedReceiptTx, setSelectedReceiptTx] = useState<Transaction | null>(null);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
-  const [authDefaultTab, setAuthDefaultTab] = useState<'login' | 'register'>('register');
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const saved = localStorage.getItem('indogold_authenticated');
-    return saved === 'true';
-  });
+
+  const checkIsAdminRoute = () => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    return path === '/admin' || path.startsWith('/admin/') || search.includes('admin') || hash.includes('admin');
+  };
+
+  const [isStandaloneAdmin, setIsStandaloneAdmin] = useState<boolean>(() => checkIsAdminRoute());
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setIsStandaloneAdmin(checkIsAdminRoute());
+    };
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
+
+  // Shortcut Ctrl+Shift+A or Cmd+Shift+A to access isolated admin portal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        try {
+          window.history.pushState({}, '', '?admin=portal');
+        } catch (_) {}
+        setIsStandaloneAdmin(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const [authDefaultTab, setAuthDefaultTab] = useState<'login' | 'register'>('login');
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [activeModal, setActiveModal] = useState<ActiveModalType>(null);
+  const [certModalMode, setCertModalMode] = useState<'sertifikat' | 'cetak_fisik'>('sertifikat');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
 
   // Validate Firestore Connection on initial boot
   useEffect(() => {
     testFirestoreConnection();
   }, []);
 
-  // Listen to Firebase Auth state
+  // Strictly listen to Firebase Auth state for session grant and revocation
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
-      if (fbUser) {
+      if (fbUser && fbUser.email) {
         setIsAuthenticated(true);
-        localStorage.setItem('indogold_authenticated', 'true');
+        localStorage.setItem('nusantaragold_authenticated', 'true');
         try {
           const profile = await syncUserProfile(fbUser);
           setUser(profile);
         } catch (err) {
           console.warn('Sync profile fallback:', err);
         }
+      } else {
+        // If not in Firebase Auth, check if there is an active session from verified registered account
+        const isAuthSaved = 
+          localStorage.getItem('nusantaragold_authenticated') === 'true' || 
+          localStorage.getItem('indogold_authenticated') === 'true';
+        const savedUserStr = localStorage.getItem('indogold_user') || localStorage.getItem('nusantaragold_user');
+
+        if (isAuthSaved && savedUserStr) {
+          try {
+            const parsed = JSON.parse(savedUserStr);
+            if (parsed && parsed.email) {
+              const account = findRegisteredAccount(parsed.email);
+              if (account) {
+                // Account is confirmed in registered vault
+                setIsAuthenticated(true);
+                setUser((prev) => ({ ...prev, ...account.userProfile, ...parsed }));
+                setIsAuthChecking(false);
+                return;
+              }
+            }
+          } catch (_) {}
+        }
+
+        // Unauthenticated session - strictly revoke
+        setIsAuthenticated(false);
+        localStorage.removeItem('indogold_authenticated');
+        localStorage.removeItem('nusantaragold_authenticated');
       }
+      setIsAuthChecking(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Real-time Firestore sync when authenticated
+  // Real-time Firestore sync when authenticated or when user email is present
   useEffect(() => {
-    if (!firebaseUser?.uid) return;
+    const cleanEmail = extractCleanEmail(user.email);
+    const effectiveUid = firebaseUser?.uid || (cleanEmail ? encodeChatId(cleanEmail) : null);
+    if (!effectiveUid && !cleanEmail) return;
 
-    const unsubProfile = subscribeToUserProfile(firebaseUser.uid, (data) => {
-      setUser((prev) => ({ ...prev, ...data }));
-    });
+    const unsubs: (() => void)[] = [];
 
-    const unsubTxs = subscribeToUserTransactions(firebaseUser.uid, (txs) => {
-      if (txs && txs.length > 0) {
-        setTransactions(txs);
+    // Subscribe to user profile by UID
+    if (effectiveUid) {
+      const unsubProfile = subscribeToUserProfile(effectiveUid, (data) => {
+        if (data) {
+          setUser((prev) => ({ ...prev, ...data }));
+        }
+      });
+      unsubs.push(unsubProfile);
+    }
+
+    // Subscribe to user profile by encoded email if UID is different
+    if (cleanEmail && effectiveUid !== encodeChatId(cleanEmail)) {
+      const unsubProfileEmail = subscribeToUserProfile(encodeChatId(cleanEmail), (data) => {
+        if (data) {
+          setUser((prev) => ({ ...prev, ...data }));
+        }
+      });
+      unsubs.push(unsubProfileEmail);
+    }
+
+    // Subscribe to user transactions (with dual UID and email query)
+    const unsubTxs = subscribeToUserTransactions(
+      effectiveUid || '',
+      (txs) => {
+        if (txs && txs.length > 0) {
+          setTransactions((prev) => {
+            const map = new Map<string, Transaction>();
+            prev.forEach((t) => map.set(t.id, t));
+            txs.forEach((t) => {
+              const existing = map.get(t.id);
+              map.set(t.id, { ...existing, ...t });
+            });
+            return Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          });
+        }
+      },
+      cleanEmail
+    );
+    unsubs.push(unsubTxs);
+
+    return () => {
+      unsubs.forEach((u) => {
+        if (typeof u === 'function') u();
+      });
+    };
+  }, [firebaseUser, user.email]);
+
+  // Real-time sync with Admin panel actions, multi-tab changes, and local vault
+  useEffect(() => {
+    const handlePlatformSync = () => {
+      const cleanEmail = extractCleanEmail(user.email);
+      if (!cleanEmail) return;
+
+      // 1. Sync user balance from local vault
+      const vaultAcc = findRegisteredAccount(cleanEmail);
+      if (vaultAcc && vaultAcc.userProfile) {
+        setUser((prev) => ({
+          ...prev,
+          balanceIdr: Number(vaultAcc.userProfile.balanceIdr !== undefined ? vaultAcc.userProfile.balanceIdr : prev.balanceIdr),
+          goldHoldingsGram: Number(vaultAcc.userProfile.goldHoldingsGram !== undefined ? vaultAcc.userProfile.goldHoldingsGram : prev.goldHoldingsGram),
+          isKycVerified: vaultAcc.userProfile.isKycVerified !== undefined ? vaultAcc.userProfile.isKycVerified : prev.isKycVerified
+        }));
+      }
+
+      // 2. Sync transactions from master platform store
+      const allMasterTxs = getAllPlatformTransactions();
+      const userMasterTxs = allMasterTxs.filter((t) => {
+        const txEmail = extractCleanEmail(t.userEmail || t.senderAccount || t.notes);
+        return txEmail === cleanEmail;
+      });
+
+      if (userMasterTxs.length > 0) {
+        setTransactions((prev) => {
+          const map = new Map<string, Transaction>();
+          prev.forEach((t) => map.set(t.id, t));
+          userMasterTxs.forEach((t) => {
+            const ex = map.get(t.id);
+            map.set(t.id, { ...ex, ...t });
+          });
+          return Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        });
+      }
+    };
+
+    window.addEventListener(INDOGOLD_SYNC_EVENT, handlePlatformSync);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'indogold_sync_trigger' || e.key === 'indogold_platform_master_txs_v1' || e.key === 'indogold_accounts_vault_v1') {
+        handlePlatformSync();
       }
     });
 
     return () => {
-      unsubProfile();
-      unsubTxs();
+      window.removeEventListener(INDOGOLD_SYNC_EVENT, handlePlatformSync);
     };
-  }, [firebaseUser]);
+  }, [user.email]);
 
-  // Fallback sync to localStorage and local vault
+  // Persistence to localStorage
   useEffect(() => {
     localStorage.setItem('indogold_user', JSON.stringify(user));
-    if (user.email) {
-      const existingAcc = findRegisteredAccount(user.email);
-      if (existingAcc) {
-        saveRegisteredAccountRecord({
-          ...existingAcc,
-          userProfile: user,
-          transactions: transactions
-        });
-      }
-    }
-  }, [user, transactions]);
+  }, [user]);
 
   useEffect(() => {
     localStorage.setItem('indogold_txs', JSON.stringify(transactions));
@@ -174,26 +322,43 @@ export default function App() {
     newBalance: number,
     newGoldHoldings: number
   ) => {
+    // Enrich transaction with user's sender account and name
+    const enrichedTx: Transaction = {
+      ...tx,
+      senderAccount: tx.senderAccount || user.email,
+      senderName: tx.senderName || user.name
+    };
+
     setUser((prev) => ({
       ...prev,
       balanceIdr: newBalance,
       goldHoldingsGram: newGoldHoldings
     }));
-    setTransactions((prev) => [tx, ...prev]);
-    setSelectedReceiptTx(tx);
+    setTransactions((prev) => [enrichedTx, ...prev.filter((t) => t.id !== enrichedTx.id)]);
+    setSelectedReceiptTx(enrichedTx);
     setActiveActionFlow(null);
 
-    // Save to Firestore if authenticated
-    if (firebaseUser?.uid) {
-      try {
-        await saveUserProfile(firebaseUser.uid, {
-          balanceIdr: newBalance,
-          goldHoldingsGram: newGoldHoldings
-        });
-        await saveTransaction(firebaseUser.uid, tx);
-      } catch (err) {
-        console.warn('Firestore write warning (offline mode fallback):', err);
-      }
+    // Record to master platform transaction list
+    recordPlatformTransaction(enrichedTx, user.email);
+
+    // Save to Firestore always with guaranteed effectiveUid
+    const effectiveUid = firebaseUser?.uid || (user.email ? encodeChatId(user.email) : 'investor_account');
+    try {
+      await saveTransaction(effectiveUid, enrichedTx, user.email, user.name);
+    } catch (err) {
+      console.warn('Firestore write warning for saveTransaction:', err);
+    }
+
+    try {
+      await saveUserProfile(effectiveUid, {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        balanceIdr: newBalance,
+        goldHoldingsGram: newGoldHoldings
+      });
+    } catch (err) {
+      console.warn('Firestore write warning for saveUserProfile:', err);
     }
 
     showToast(`Transaksi ${tx.title} berhasil diproses!`);
@@ -219,7 +384,7 @@ export default function App() {
       date: 'Hari ini, Baru saja',
       timestamp: Date.now(),
       status: 'Approved',
-      paymentMethod: 'IndoGold 3% Daily Yield Vault',
+      paymentMethod: 'NusantaraGold 3% Daily Yield Vault',
       taxOrFee: 0
     };
     setTransactions((prev) => [profitTx, ...prev]);
@@ -277,9 +442,9 @@ export default function App() {
         date: 'Hari ini, Baru saja',
         timestamp: Date.now(),
         status: 'Approved',
-        paymentMethod: 'IndoGold Welcome Bonus',
+        paymentMethod: 'NusantaraGold Welcome Bonus',
         taxOrFee: 0,
-        notes: 'Bonus saldo tunai pendaftaran akun baru IndoGold Luxe 24K'
+        notes: 'Bonus saldo tunai pendaftaran akun baru NusantaraGold Luxe 24K'
       };
       newTransactionsList.push(signupTx);
 
@@ -295,7 +460,7 @@ export default function App() {
           date: 'Hari ini, Baru saja',
           timestamp: Date.now() + 1,
           status: 'Approved',
-          paymentMethod: 'IndoGold Referral Program',
+          paymentMethod: 'NusantaraGold Referral Program',
           taxOrFee: 0,
           notes: `Hadiah bonus ekstra referral kode ${referralCodeUsed.trim().toUpperCase()}`
         };
@@ -339,14 +504,19 @@ export default function App() {
         updatedAt: Date.now()
       });
 
-      if (currentFbUser?.uid) {
+      const syncUid = currentFbUser?.uid || encodeChatId(email);
+      try {
+        await saveUserProfile(syncUid, newUserProfile);
+      } catch (err) {
+        console.warn('Sync new user profile to Firestore note:', err);
+      }
+
+      for (const tx of newTransactionsList) {
         try {
-          await saveUserProfile(currentFbUser.uid, newUserProfile);
-          for (const tx of newTransactionsList) {
-            await saveTransaction(currentFbUser.uid, tx);
-          }
+          await saveTransaction(syncUid, tx, email, name);
+          recordPlatformTransaction(tx, email);
         } catch (err) {
-          console.warn('Sync new user to Firestore note:', err);
+          console.warn('Sync new user tx to Firestore note:', err);
         }
       }
 
@@ -380,7 +550,7 @@ export default function App() {
           }));
         }
       }
-      showToast(`Selamat datang kembali di IndoGold, ${name}!`);
+      showToast(`Selamat datang kembali di NusantaraGold, ${name}!`);
     }
 
     setIsAuthenticated(true);
@@ -411,6 +581,21 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
     showToast('Anda telah keluar dari sesi. Silakan mendaftar akun baru (Bonus s.d Rp 30.000) atau masuk.');
   };
+
+  // Dedicated Isolated Admin Portal (Accessible via /admin, ?admin=true, or secret shortcut)
+  if (isStandaloneAdmin) {
+    return (
+      <StandaloneAdminPortal
+        onBackToApp={() => {
+          try {
+            window.history.pushState({}, '', '/');
+          } catch (_) {}
+          setIsStandaloneAdmin(false);
+          window.dispatchEvent(new CustomEvent(INDOGOLD_SYNC_EVENT, { detail: { type: 'admin_portal_exit' } }));
+        }}
+      />
+    );
+  }
 
   // If user is not authenticated (or after logout), show the full-screen Registration/Login view directly
   if (!isAuthenticated) {
@@ -453,9 +638,6 @@ export default function App() {
 
       {/* Main Content Container with mobile-first maximum width */}
       <main className="flex-1 w-full max-w-2xl mx-auto px-4 pt-4 pb-20 overflow-x-hidden">
-        {/* PWA Install Banner for Mobile & Desktop Home Screen Installation */}
-        <InstallPromptBanner />
-
         <AnimatePresence mode="wait">
           {/* Active Sub-flows: Trade (Buy/Sell) */}
           {activeActionFlow === 'trade' && (
@@ -507,13 +689,22 @@ export default function App() {
             >
               <HomeScreen
                 user={user}
+                transactions={transactions}
+                onSelectTransaction={(tx) => setSelectedReceiptTx(tx)}
                 onNavigateTab={handleNavigate}
                 onStartTrade={handleStartTrade}
                 onStartWallet={handleStartWallet}
                 onOpenArticles={() => setActiveModal('articles')}
                 onOpenKyc={() => setActiveModal('kyc')}
-                onOpenCertificate={() => setActiveModal('certificate')}
+                onOpenCertificate={(mode) => {
+                  setCertModalMode(mode || 'sertifikat');
+                  setActiveModal('certificate');
+                }}
                 onOpenProofTransfer={() => setActiveModal('proof_transfer')}
+                onOpenPromoKit={() => setActiveModal('promo_kit')}
+                onOpenTransferEmas={() => setActiveModal('transfer_emas')}
+                onOpenHelp={() => setActiveModal('help')}
+                onOpenNotifications={() => setShowNotifications(true)}
               />
             </motion.div>
           )}
@@ -529,6 +720,10 @@ export default function App() {
               <PortfolioScreen
                 user={user}
                 onStartTrade={handleStartTrade}
+                onOpenCertificate={() => {
+                  setCertModalMode('sertifikat');
+                  setActiveModal('certificate');
+                }}
                 onClaimDailyProfit={handleClaimDailyProfit}
                 onShowToast={showToast}
               />
@@ -571,10 +766,37 @@ export default function App() {
                 onOpenBankModal={() => setActiveModal('bank')}
                 onOpenKycModal={() => setActiveModal('kyc')}
                 onOpenProofTransfer={() => setActiveModal('proof_transfer')}
+                onOpenPromoKit={() => setActiveModal('promo_kit')}
+                onOpenAdmin={() => setIsStandaloneAdmin(true)}
               />
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Discreet regulatory copyright footer with multi-tap trigger for owner */}
+        <div className="mt-8 mb-4 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              const currentWindow = window as any;
+              currentWindow.__admin_tap_count = (currentWindow.__admin_tap_count || 0) + 1;
+              if (currentWindow.__admin_tap_count >= 5) {
+                currentWindow.__admin_tap_count = 0;
+                try {
+                  window.history.pushState({}, '', '?admin=portal');
+                } catch (_) {}
+                setIsStandaloneAdmin(true);
+              }
+              setTimeout(() => {
+                currentWindow.__admin_tap_count = 0;
+              }, 3000);
+            }}
+            className="text-[11px] text-[#6E675D] hover:text-[#A0988C] transition cursor-default select-none tracking-wide"
+            title="NusantaraGold Indonesia"
+          >
+            © 2026 PT NusantaraGold Indonesia • Berizin & Diawasi BAPPEBTI
+          </button>
+        </div>
       </main>
 
       {/* Sticky Bottom Tab Bar (4 Tabs: Beranda, Portofolio, Riwayat, Akun) */}
@@ -587,14 +809,22 @@ export default function App() {
         }}
       />
 
-      {/* Active Feature Modals (Articles, Help, Pin, Certificate, Bank, KYC, Proof Transfer) */}
+      {/* Active Feature Modals (Articles, Help, Pin, Certificate, Bank, KYC, Proof Transfer, Promo Kit, Transfer Emas) */}
       <ActiveModals
         activeModal={activeModal}
+        certModalMode={certModalMode}
         onClose={() => setActiveModal(null)}
         user={user}
         onUpdateUser={handleUpdateUser}
         onShowToast={showToast}
-        onSubmitProof={(tx, amount) => handleCompleteTransaction(tx, amount, 0)}
+        onSubmitProof={(tx) => handleCompleteTransaction(tx, user.balanceIdr, user.goldHoldingsGram)}
+        onTransferEmas={(updated, newTx) => {
+          handleUpdateUser(updated);
+          setTransactions((prev) => [newTx, ...prev]);
+          recordPlatformTransaction(newTx);
+          const effectiveUid = firebaseUser?.uid || encodeChatId(extractCleanEmail(user.email) || 'guest');
+          saveTransaction(effectiveUid, newTx, user.email, user.name);
+        }}
         onStartTrade={handleStartTrade}
       />
 

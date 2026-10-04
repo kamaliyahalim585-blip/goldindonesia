@@ -1,5 +1,6 @@
 import React from 'react';
-import { ShieldCheck, Bell, Sparkles } from 'lucide-react';
+import { ShieldCheck, Bell } from 'lucide-react';
+import nusantaragoldLogo from '../assets/images/nusantaragold_logo_1791089607884.jpg';
 import { UserAccount } from '../types';
 
 interface NavbarProps {
@@ -28,12 +29,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between">
         {/* Brand Logo & Name */}
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={handleProfileClick}>
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 border-2 border-amber-300 flex items-center justify-center shadow-[0_0_15px_rgba(251,191,36,0.35)]">
-            <span className="font-serif font-black text-lg text-slate-950 leading-none">IG</span>
-          </div>
+          <img 
+            src={nusantaragoldLogo} 
+            alt="Logo NusantaraGold" 
+            className="w-10 h-10 rounded-xl object-contain bg-black border border-amber-400/60 shadow-[0_0_15px_rgba(251,191,36,0.3)] shrink-0" 
+            referrerPolicy="no-referrer"
+          />
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-serif text-xl font-bold tracking-wide text-[#F7F5F2]">IndoGold</span>
+              <span className="font-serif text-xl font-bold tracking-wide text-[#F7F5F2]">NusantaraGold</span>
               <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-400 text-slate-950 shadow-sm">
                 LUXE 24K
               </span>
@@ -42,19 +46,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Right actions: KYC badge & Notification Bell */}
-        <div className="flex items-center gap-2.5">
-          {user.isKycVerified && (
-            <div 
-              onClick={handleProfileClick}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border-2 border-emerald-400/80 text-[11px] font-bold text-emerald-300 cursor-pointer shadow-sm shadow-emerald-950/50 hover:scale-105 transition-all"
-              title="Status: Terverifikasi KYC Tingkat 2"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 stroke-[2.5]" />
-              <span>KYC Terverifikasi</span>
-            </div>
-          )}
-
+        {/* Right actions: Notification Bell & Profile */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
           <button
             onClick={onOpenNotifications}
             className="w-10 h-10 rounded-xl bg-[#1A1816] border border-[#2E2820] flex items-center justify-center text-[#EAE6E1] hover:text-amber-400 hover:border-amber-400/60 transition relative shadow-sm cursor-pointer"

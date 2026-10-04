@@ -69,7 +69,7 @@ export const InstallPromptBanner: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-amber-300">Install Aplikasi IndoGold</span>
+                <span className="text-xs font-bold text-amber-300">Install Aplikasi NusantaraGold</span>
                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 font-mono font-bold">PWA</span>
               </div>
               <p className="text-[11px] text-[#A0988C] mt-0.5 leading-snug">
@@ -134,7 +134,7 @@ export const InstallPromptBanner: React.FC = () => {
                 <span className="w-5 h-5 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</span>
                 <div>
                   <p className="font-semibold text-[#F7F5F2]">Selesai!</p>
-                  <p className="text-[11px] text-[#9E978E]">Ikon IndoGold akan muncul di menu aplikasi HP Anda seperti aplikasi bawaan.</p>
+                  <p className="text-[11px] text-[#9E978E]">Ikon NusantaraGold akan muncul di menu aplikasi HP Anda seperti aplikasi bawaan.</p>
                 </div>
               </div>
             </div>

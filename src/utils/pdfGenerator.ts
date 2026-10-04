@@ -147,7 +147,7 @@ export function generateTransactionReceiptPdf(
   doc.text('KYC Tingkat 2 (Terverifikasi BAPPEBTI)', margin + 42, y + 14);
 
   doc.setTextColor(30, 28, 25);
-  doc.text(transaction.paymentMethod || 'Saldo Kas IndoGold', margin + 122, y + 7);
+  doc.text(transaction.paymentMethod || 'Saldo Kas NusantaraGold', margin + 122, y + 7);
   doc.text(transaction.accountNumber || '8271-8821-00 (BCA)', margin + 122, y + 14);
 
   // Transaction Breakdown Table
@@ -252,7 +252,7 @@ export function generateTransactionReceiptPdf(
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 95, 88);
-  doc.text('1. Dokumen ini adalah bukti transaksi digital sah yang diterbitkan otomatis oleh sistem komputasi IndoGold.', margin + 6, y + 15);
+  doc.text('1. Dokumen ini adalah bukti transaksi digital sah yang diterbitkan otomatis oleh sistem komputasi NusantaraGold.', margin + 6, y + 15);
   doc.text('2. Setiap gram emas fisik dialokasikan 1:1 di brankas kustodi berstandar keamanan internasional LBMA & SNI.', margin + 6, y + 21);
   doc.text('3. Data transaksi dicatat permanen pada sistem kliring teregulasi BAPPEBTI dengan enkripsi SHA-256.', margin + 6, y + 27);
   doc.text(`4. Kode Enkripsi Transaksi: SHA256:${encodeStringToHex(transaction.id + transaction.date).slice(0, 32).toUpperCase()}`, margin + 6, y + 33);
@@ -266,7 +266,7 @@ export function generateTransactionReceiptPdf(
 
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 28, 25);
-  doc.text('PT INDOGOLD NUSANTARA BERJAYA', pageWidth - margin - 6, y + 6, { align: 'right' });
+  doc.text('PT NUSANTARAGOLD NUSANTARA BERJAYA', pageWidth - margin - 6, y + 6, { align: 'right' });
 
   // Simulated digital seal stamp
   const stampX = pageWidth - margin - 50;
@@ -299,14 +299,14 @@ export function generateTransactionReceiptPdf(
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(212, 175, 55);
   doc.text(
-    'IndoGold Secure Vault • Hotline 24 Jam: (021) 8062-8888 • Email: support@indogold.co.id • www.indogold.co.id',
+    'NusantaraGold Secure Vault • Hotline 24 Jam: (021) 8062-8888 • Email: support@nusantaragold.id • www.nusantaragold.id',
     pageWidth / 2,
     293,
     { align: 'center' }
   );
 
   // Trigger download in browser
-  const filename = `Struk_Resmi_IndoGold_${transaction.id}.pdf`;
+  const filename = `Struk_Resmi_NusantaraGold_${transaction.id}.pdf`;
   doc.save(filename);
 }
 
@@ -498,7 +498,7 @@ export function generateGoldCertificatePdf(cert: GoldCertificateData): void {
   doc.text('Diterbitkan secara sah oleh:', sigX, y + 4);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(26, 24, 22);
-  doc.text('KOMITE UJI LAB & KUSTODI INDOGOLD', sigX, y + 9);
+  doc.text('KOMITE UJI LAB & KUSTODI NUSANTARAGOLD', sigX, y + 9);
 
   doc.setDrawColor(180, 140, 30);
   doc.setLineWidth(0.4);

@@ -42,9 +42,58 @@
         "status": { "type": "string", "description": "Status", "enum": ["Approved", "Pending", "Rejected"] },
         "paymentMethod": { "type": "string", "description": "Selected payment gateway or method" },
         "taxOrFee": { "type": "number", "description": "Applicable PPh/PPN tax or fee in IDR" },
+        "recipientName": { "type": "string", "description": "Recipient name for withdrawals" },
+        "senderName": { "type": "string", "description": "Sender name for deposits" },
+        "senderAccount": { "type": "string", "description": "Sender account or email" },
+        "proofImage": { "type": "string", "description": "URL or base64 preview of deposit proof" },
+        "notes": { "type": "string", "description": "Transaction notes or rejection reasons" },
         "createdAt": { "type": "string", "description": "Creation timestamp" }
       },
       "required": ["id", "userId", "category", "title", "amountIdr", "timestamp", "status", "paymentMethod"]
+    },
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "Live CS customer service chat session between user and admin desk",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Chat session ID" },
+        "userId": { "type": "string", "description": "User account UID" },
+        "userEmail": { "type": "string", "description": "User email address" },
+        "userName": { "type": "string", "description": "User display name" },
+        "userPhone": { "type": "string", "description": "User phone number" },
+        "userGoldHoldings": { "type": "number", "description": "Current gold holdings in grams" },
+        "userBalanceIdr": { "type": "number", "description": "Current cash balance in IDR" },
+        "unreadByAdmin": { "type": "number", "description": "Unread message count for admin" },
+        "unreadByUser": { "type": "number", "description": "Unread message count for user" },
+        "lastMessage": { "type": "string", "description": "Preview of last sent message" },
+        "lastMessageTime": { "type": "string", "description": "Timestamp string of last message" },
+        "updatedAt": { "type": "number", "description": "Epoch timestamp of last update" }
+      },
+      "required": ["id", "userEmail", "userName"]
+    },
+    "GoldPriceConfig": {
+      "title": "GoldPriceConfig",
+      "description": "Global live gold price benchmark configuration",
+      "type": "object",
+      "properties": {
+        "buyPrice": { "type": "number", "description": "Buy price per gram in IDR" },
+        "sellPrice": { "type": "number", "description": "Sell price per gram in IDR" },
+        "updatedAt": { "type": "string", "description": "Last update timestamp" },
+        "updatedBy": { "type": "string", "description": "Admin user who updated prices" }
+      },
+      "required": ["buyPrice", "sellPrice"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted administrative authority registry for RBAC",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase user UID" },
+        "email": { "type": "string", "description": "Admin email" },
+        "role": { "type": "string", "description": "Admin role title" },
+        "createdAt": { "type": "string", "description": "Registration timestamp" }
+      },
+      "required": ["uid", "email"]
     }
   },
   "firestore": {
@@ -55,6 +104,18 @@
     "/transactions/{transactionId}": {
       "schema": "Transaction",
       "description": "Global transactions collection keyed by transaction ID"
+    },
+    "/chats/{chatId}": {
+      "schema": "ChatSession",
+      "description": "Live CS desk chat sessions keyed by session ID"
+    },
+    "/config/{configId}": {
+      "schema": "GoldPriceConfig",
+      "description": "Platform configuration documents including gold price"
+    },
+    "/admins/{adminId}": {
+      "schema": "AdminRecord",
+      "description": "Authorized administrators list"
     }
   }
 }

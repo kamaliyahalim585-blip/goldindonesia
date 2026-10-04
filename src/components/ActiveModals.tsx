@@ -25,6 +25,9 @@ import { GoldCertificateModal } from './GoldCertificateModal';
 import { ProofTransferModal } from './ProofTransferModal';
 import { PinVerificationModal } from './PinVerificationModal';
 import { LiveChatModal } from './modals/LiveChatModal';
+import { PromoKitModal } from './modals/PromoKitModal';
+import { TransferEmasModal } from './modals/TransferEmasModal';
+import { BASE_BUY_PRICE } from '../data/mockData';
 
 export type ActiveModalType = 
   | 'articles' 
@@ -35,15 +38,19 @@ export type ActiveModalType =
   | 'kyc' 
   | 'profile'
   | 'proof_transfer'
+  | 'promo_kit'
+  | 'transfer_emas'
   | null;
 
 interface ActiveModalsProps {
   activeModal: ActiveModalType;
   onClose: () => void;
   user: UserAccount;
+  certModalMode?: 'sertifikat' | 'cetak_fisik';
   onUpdateUser: (updated: Partial<UserAccount>) => void;
   onShowToast: (msg: string) => void;
   onSubmitProof?: (newTx: Transaction, amount: number) => void;
+  onTransferEmas?: (updated: Partial<UserAccount>, newTx: Transaction) => void;
   onStartTrade?: (type: 'buy' | 'sell') => void;
 }
 
@@ -51,12 +58,41 @@ export const ActiveModals: React.FC<ActiveModalsProps> = ({
   activeModal,
   onClose,
   user,
+  certModalMode = 'sertifikat',
   onUpdateUser,
   onShowToast,
   onSubmitProof,
+  onTransferEmas,
   onStartTrade
 }) => {
   if (!activeModal) return null;
+
+  {/* Modul Transfer Emas */}
+  if (activeModal === 'transfer_emas') {
+    return (
+      <TransferEmasModal
+        user={user}
+        currentPrice={BASE_BUY_PRICE}
+        onClose={onClose}
+        onSuccess={(updated, newTx) => {
+          onUpdateUser(updated);
+          if (onTransferEmas) onTransferEmas(updated, newTx);
+        }}
+        onShowToast={onShowToast}
+      />
+    );
+  }
+
+  {/* Modul Pusat Bahan Promosi & Bukti WD */}
+  if (activeModal === 'promo_kit') {
+    return (
+      <PromoKitModal
+        onClose={onClose}
+        user={user}
+        onShowToast={onShowToast}
+      />
+    );
+  }
 
   {/* Modul Kirim Bukti Transfer */}
   if (activeModal === 'proof_transfer') {
@@ -78,6 +114,7 @@ export const ActiveModals: React.FC<ActiveModalsProps> = ({
       <GoldCertificateModal 
         user={user} 
         initialGrams={user.goldHoldingsGram > 0 ? user.goldHoldingsGram : 0}
+        initialMode={certModalMode}
         onClose={onClose} 
         onShowToast={onShowToast} 
         onStartTrade={onStartTrade}
@@ -146,7 +183,7 @@ const ArticlesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       tag: 'ANALISIS MAKROEKONOMI',
       title: 'Sentimen Emas Global: Ekspektasi Suku Bunga Global Menguatkan Posisi Emas',
       date: '13 Sep 2026 • 2 jam lalu',
-      author: 'Tim Riset IndoGold Bullion',
+      author: 'Tim Riset NusantaraGold Bullion',
       content: `Emas batangan mencatatkan momentum kenaikan konsisten di kuartal ketiga 2026. Pelemahan indeks dolar serta langkah bank sentral global dalam menambah cadangan emas fisik (official gold reserves) menopang harga beli lokal di atas level Rp 1.450.000 per gram. Bagi investor ritel, strategi Dollar Cost Averaging (DCA) tetap menjadi rekomendasi utama untuk memitigasi volatilitas jangka pendek.`
     },
     {
@@ -154,7 +191,7 @@ const ArticlesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       tag: 'PANDUAN INVESTOR',
       title: 'Perbedaan Emas Batangan ANTAM, UBS, dan PAMP Suisse: Mana Pilihan Terbaik?',
       date: '12 Sep 2026 • Kemarin',
-      author: 'Edukasi Portofolio IndoGold',
+      author: 'Edukasi Portofolio NusantaraGold',
       content: `ANTAM CertiCard diakui dengan standar LBMA (London Bullion Market Association) yang diakui secara global. UBS Gold menawarkan biaya cetak kompetitif dengan likuiditas tinggi di toko emas seluruh nusantara. PAMP Suisse dari Swiss menghadirkan teknologi Veriscan dengan cetakan artistik Lady Fortuna yang sangat diminati oleh kolektor internasional.`
     },
     {
@@ -162,7 +199,7 @@ const ArticlesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       tag: 'STRATEGI TABUNGAN',
       title: 'Lindung Nilai (Hedging) Inflasi: Mengapa Alokasi Emas 10-20% Ideal?',
       date: '10 Sep 2026 • 3 hari lalu',
-      author: 'Financial Advisory IndoGold',
+      author: 'Financial Advisory NusantaraGold',
       content: `Data historis 30 tahun menunjukkan daya beli emas tetap konstan terhadap kebutuhan pokok. Mengalokasikan 10% hingga 20% dari total kekayaan ke dalam emas murni 24 karat terbukti menjaga nilai riil portofolio dari penurunan nilai mata uang tunai.`
     }
   ];
@@ -254,11 +291,11 @@ const HelpModal: React.FC<{ onClose: () => void; onShowToast: (msg: string) => v
       a: 'Anda dapat menukarkan gramatur tabungan emas digital menjadi batangan fisik (ANTAM, UBS, PAMP) melalui menu "Cetak Sertifikat Fisik Emas" di tab Akun. Pengiriman menggunakan ekspedisi berasuransi 100% langsung ke alamat Anda.'
     },
     {
-      q: 'Berapa minimal transaksi beli emas di IndoGold?',
+      q: 'Berapa minimal transaksi beli emas di NusantaraGold?',
       a: 'Minimal pembelian emas digital mulai dari Rp 10.000 atau setara ~0.0069 gram. Anda bebas menambah tabungan emas kapan pun tanpa batasan waktu.'
     },
     {
-      q: 'Apakah emas di IndoGold aman dan memiliki wujud fisik nyata?',
+      q: 'Apakah emas di NusantaraGold aman dan memiliki wujud fisik nyata?',
       a: 'Sangat aman. Setiap gram saldo emas digital didukung 1:1 oleh fisik emas batangan 24 karat yang tersimpan di lembaga kliring kustodi resmi teregulasi BAPPEBTI Republik Indonesia.'
     },
     {
@@ -272,7 +309,7 @@ const HelpModal: React.FC<{ onClose: () => void; onShowToast: (msg: string) => v
       <div className="p-4 border-b border-[#2E2A26] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <HelpCircle className="w-4 h-4 text-[#D4AF37]" />
-          <h3 className="font-serif text-lg text-[#F7F5F2]">Pusat Bantuan IndoGold</h3>
+          <h3 className="font-serif text-lg text-[#F7F5F2]">Pusat Bantuan NusantaraGold</h3>
         </div>
         <button
           onClick={onClose}
@@ -300,7 +337,7 @@ const HelpModal: React.FC<{ onClose: () => void; onShowToast: (msg: string) => v
 
             <button
               onClick={() => {
-                onShowToast('Email bantuan dialihkan ke support@indogold.co.id');
+                onShowToast('Email bantuan dialihkan ke support@nusantaragold.co.id');
                 onClose();
               }}
               className="p-2.5 rounded-lg bg-[#26231F] border border-[#4A433D] hover:border-[#D4AF37] transition flex items-center gap-2 text-xs text-[#EAE6E1]"

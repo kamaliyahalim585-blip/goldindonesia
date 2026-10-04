@@ -385,7 +385,7 @@ export const HistoricalGoldChartRecharts: React.FC = () => {
           <Info className="w-3 h-3 text-[#D4AF37]" />
           Arahkan kursor atau sentuh grafik untuk melihat rincian tanggal tertentu.
         </span>
-        <span className="hidden sm:inline text-[#D4AF37]">IndoGold Market Index</span>
+        <span className="hidden sm:inline text-[#D4AF37]">NusantaraGold Market Index</span>
       </div>
     </section>
   );

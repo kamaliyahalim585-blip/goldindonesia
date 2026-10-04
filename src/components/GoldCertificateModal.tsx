@@ -24,6 +24,7 @@ interface GoldCertificateModalProps {
   user: UserAccount;
   initialGrams?: number;
   initialBrand?: string;
+  initialMode?: 'sertifikat' | 'cetak_fisik';
   onClose: () => void;
   onShowToast: (msg: string) => void;
   onStartTrade?: (type: 'buy' | 'sell') => void;
@@ -33,6 +34,7 @@ export const GoldCertificateModal: React.FC<GoldCertificateModalProps> = ({
   user,
   initialGrams = 0,
   initialBrand = 'ANTAM CertiCard',
+  initialMode = 'sertifikat',
   onClose,
   onShowToast,
   onStartTrade
@@ -49,7 +51,7 @@ export const GoldCertificateModal: React.FC<GoldCertificateModalProps> = ({
   const [copiedSerial, setCopiedSerial] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const [mode, setMode] = useState<'sertifikat' | 'cetak_fisik'>('sertifikat');
+  const [mode, setMode] = useState<'sertifikat' | 'cetak_fisik'>(initialMode);
   const [shippingAddress, setShippingAddress] = useState('Jl. Jenderal Sudirman Kav. 21, SCBD, Jakarta Selatan 12190');
   const [isSubmittingPhysical, setIsSubmittingPhysical] = useState(false);
 
@@ -163,7 +165,7 @@ export const GoldCertificateModal: React.FC<GoldCertificateModalProps> = ({
                     </span>
                   </div>
                   <p className="text-[11.5px] text-[#E0CDCD] mt-1 leading-relaxed">
-                    Sesuai ketentuan bursa dan regulasi BAPPEBTI, penerbitan dan pengunduhan sertifikat keaslian fisik <strong>hanya diprioritaskan bagi investor yang telah memiliki simpanan emas aktif</strong> di portofolio IndoGold. Anda belum memiliki saldo emas.
+                    Sesuai ketentuan bursa dan regulasi BAPPEBTI, penerbitan dan pengunduhan sertifikat keaslian fisik <strong>hanya diprioritaskan bagi investor yang telah memiliki simpanan emas aktif</strong> di portofolio NusantaraGold. Anda belum memiliki saldo emas.
                   </p>
                 </div>
               </div>

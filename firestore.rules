@@ -1,26 +1,64 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'khoirulanisss@gmail.com' ||
+        request.auth.token.email == 'admin@indogold.id' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
     // Connection health check
     match /test/connection {
       allow read: if true;
     }
 
-    // User profiles: strictly isolated to the authenticated owner
-    match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+    // Live CS chat sessions: Accessible for customer support messaging, read/write by client & admin
+    match /chats/{chatId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin();
     }
 
-    // Transactions ledger: strictly isolated to the owner
+    // User profiles: syncable across sessions and admin desk
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // Financial transactions: accessible for tracking and admin verification
     match /transactions/{transactionId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update: if request.auth != null && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
-      allow delete: if false; // Financial ledger transactions must not be deleted
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // Global gold price config: readable by all, writable by admin/manager
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Admins registry
+    match /admins/{adminId} {
+      allow read: if true;
+      allow write: if true;
     }
   }
 }

@@ -85,20 +85,62 @@ export const ProofTransferModal: React.FC<ProofTransferModalProps> = ({
       setErrorMessage('Harap unggah file foto atau gambar struk bukti transfer (JPG, PNG, WEBP).');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setErrorMessage('Ukuran file maksimal adalah 5MB.');
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMessage('Ukuran file maksimal adalah 10MB.');
       return;
     }
 
     setFileName(file.name);
-    setFileSize(`${(file.size / 1024).toFixed(1)} KB`);
     setErrorMessage(null);
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      if (event.target?.result) {
-        setImagePreview(event.target.result as string);
-      }
+      const rawUrl = event.target?.result as string;
+      if (!rawUrl) return;
+
+      // Compress to optimal thumbnail size for fast upload and Firestore compatibility
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const MAX_DIM = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.75);
+            setImagePreview(compressed);
+            setFileSize(`${(compressed.length / 1024).toFixed(1)} KB (Teroptimasi)`);
+          } else {
+            setImagePreview(rawUrl);
+            setFileSize(`${(file.size / 1024).toFixed(1)} KB`);
+          }
+        } catch (_) {
+          setImagePreview(rawUrl);
+          setFileSize(`${(file.size / 1024).toFixed(1)} KB`);
+        }
+      };
+      img.onerror = () => {
+        setImagePreview(rawUrl);
+        setFileSize(`${(file.size / 1024).toFixed(1)} KB`);
+      };
+      img.src = rawUrl;
     };
     reader.readAsDataURL(file);
   };
@@ -193,9 +235,9 @@ export const ProofTransferModal: React.FC<ProofTransferModalProps> = ({
         paymentMethod: `${activeMethod.name} (${activeMethod.accountNumber})`,
         recipientName: activeMethod.accountName,
         senderName: senderName.trim(),
-        senderAccount: senderAccount ? `${senderBank} • ${senderAccount}` : senderBank,
+        senderAccount: senderAccount ? `${senderBank} • ${senderAccount} (${user.email || ''})` : `${senderBank} (${user.email || ''})`,
         proofImage: imagePreview,
-        notes: notes || `Deposit ke ${activeMethod.name} a.n ${activeMethod.accountName}`,
+        notes: notes || `Deposit ke ${activeMethod.name} a.n ${activeMethod.accountName} oleh ${user.email || senderName}`,
         taxOrFee: 0
       };
 
@@ -248,7 +290,7 @@ export const ProofTransferModal: React.FC<ProofTransferModalProps> = ({
                   Bukti Transfer Berhasil Terkirim!
                 </h3>
                 <p className="text-xs text-[#A0988C] mt-1 max-w-sm mx-auto leading-relaxed">
-                  Tim verifikasi IndoGold sedang memeriksa mutasi saldo Anda. Saldo kas sebesar <strong className="text-amber-400">Rp {amountStr}</strong> akan segera otomatis masuk ke akun Anda.
+                  Tim verifikasi NusantaraGold sedang memeriksa mutasi saldo Anda. Saldo kas sebesar <strong className="text-amber-400">Rp {amountStr}</strong> akan segera otomatis masuk ke akun Anda.
                 </p>
               </div>
 
@@ -549,7 +591,7 @@ export const ProofTransferModal: React.FC<ProofTransferModalProps> = ({
               <div className="p-3 rounded-xl bg-[#141210] border border-[#26211B] flex items-start gap-2 text-[11px] text-[#A0988C]">
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <p>
-                  Semua bukti transfer diverifikasi langsung oleh Admin Keuangan PT IndoGold Bullion Berjangka. Transaksi dilindungi enkripsi 256-bit SSL.
+                  Semua bukti transfer diverifikasi langsung oleh Admin Keuangan PT NusantaraGold Bullion Berjangka. Transaksi dilindungi enkripsi 256-bit SSL.
                 </p>
               </div>
 

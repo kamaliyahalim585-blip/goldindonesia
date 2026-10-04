@@ -131,7 +131,7 @@ export const TradeScreen: React.FC<TradeScreenProps> = ({
         timestamp: Date.now(),
         status: 'Approved',
         paymentMethod: tradeType === 'beli' 
-          ? (selectedPaymentSource === 'saldo' ? 'Saldo Kas IndoGold' : 'BCA Virtual Account')
+          ? (selectedPaymentSource === 'saldo' ? 'Saldo Kas NusantaraGold' : 'BCA Virtual Account')
           : 'Pencairan ke Saldo Kas'
       };
 
@@ -349,7 +349,7 @@ export const TradeScreen: React.FC<TradeScreenProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#F7F5F2]">Saldo IndoGold</span>
+                  <span className="text-xs font-bold text-[#F7F5F2]">Saldo NusantaraGold</span>
                   {selectedPaymentSource === 'saldo' ? (
                     <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-slate-950">
                       <Check className="w-3.5 h-3.5 stroke-[3]" />

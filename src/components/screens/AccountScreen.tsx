@@ -19,13 +19,16 @@ import {
   LogIn,
   AlertTriangle,
   Headphones,
-  MessageSquareText
+  MessageSquareText,
+  Shield,
+  Sliders,
+  Users
 } from 'lucide-react';
 import { UserAccount } from '../../types';
 import { 
   formatIDR, 
   formatIDRNumberOnly, 
-  formatGramsNumberOnly,
+  formatGramsNumberOnly, 
   BASE_BUY_PRICE 
 } from '../../data/mockData';
 
@@ -41,6 +44,8 @@ interface AccountScreenProps {
   onOpenBankModal?: () => void;
   onOpenKycModal?: () => void;
   onOpenProofTransfer?: () => void;
+  onOpenPromoKit?: () => void;
+  onOpenAdmin?: () => void;
 }
 
 export const AccountScreen: React.FC<AccountScreenProps> = ({
@@ -54,11 +59,18 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
   onOpenHelpModal,
   onOpenBankModal,
   onOpenKycModal,
-  onOpenProofTransfer
+  onOpenProofTransfer,
+  onOpenPromoKit,
+  onOpenAdmin
 }) => {
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [biometric, setBiometric] = useState(user.biometricEnabled);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const isAdminUser = 
+    user.role === 'admin' || 
+    user.email?.toLowerCase() === 'khoirulanisss@gmail.com' || 
+    user.email?.toLowerCase().includes('admin');
 
   const goldValueEstimate = Math.round(user.goldHoldingsGram * BASE_BUY_PRICE);
   const totalAssetsValue = user.balanceIdr + goldValueEstimate;
@@ -70,11 +82,11 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
   };
 
   const handleShareReferral = async () => {
-    const text = `Daftar akun IndoGold menggunakan kode referral saya [${user.referralCode}] dan dapatkan bonus saldo gratis hingga Rp 30.000 untuk mulai investasi emas 24K!`;
+    const text = `Daftar akun NusantaraGold menggunakan kode referral saya [${user.referralCode}] dan dapatkan bonus saldo gratis hingga Rp 30.000 untuk mulai investasi emas 24K!`;
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Bonus Investasi Emas IndoGold 24K',
+          title: 'Bonus Investasi Emas NusantaraGold 24K',
           text,
           url: window.location.origin
         });
@@ -173,6 +185,39 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
         </div>
       </section>
 
+      {/* Admin Quick Entry Banner */}
+      {isAdminUser && onOpenAdmin && (
+        <section className="rounded-2xl bg-gradient-to-r from-amber-950/70 via-[#211B10] to-[#161412] border-2 border-amber-500/60 p-4 shadow-xl relative overflow-hidden animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center font-bold shadow-md shadow-amber-500/25 shrink-0">
+                <Shield className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-amber-300 font-serif">Pusat Kontrol Super Admin</h3>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400 text-slate-950">
+                    Aktivitas Kontrol
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#C2BCB3]">
+                  Kelola verifikasi penarikan saldo, konfirmasi deposit bukti transfer, live chat, dan pengguna.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenAdmin}
+              className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 text-xs font-bold hover:brightness-110 active:scale-95 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/30 shrink-0"
+            >
+              <span>Buka Panel Kontrol Admin</span>
+              <ChevronRight className="w-4 h-4 stroke-[2.5]" />
+            </button>
+          </div>
+        </section>
+      )}
+
       {/* 2. Layanan Prioritas: Live Chat 24 Jam & Bantuan */}
       <section className="rounded-2xl bg-gradient-to-r from-[#2A2315] via-[#1E1911] to-[#161412] border border-[#D4AF37]/50 p-4 sm:p-5 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-36 h-36 bg-[#D4AF37]/10 rounded-full blur-2xl pointer-events-none" />
@@ -194,7 +239,7 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
                 </span>
               </div>
               <p className="text-xs text-[#C2BCB3] mt-0.5">
-                Bicara langsung dengan staf CS IndoGold dalam aplikasi (Respon instan)
+                Bicara langsung dengan staf CS NusantaraGold dalam aplikasi (Respon instan)
               </p>
             </div>
           </div>
@@ -342,7 +387,48 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
         </div>
       </section>
 
-      {/* 5. Menu Keamanan & Pengaturan Akun (Cohesive IndoGold Theme) */}
+      {/* 4b. Pusat Bahan Promosi & Bukti WD (Kit Marketing Lengkap) */}
+      <section className="relative rounded-2xl bg-gradient-to-r from-[#241E15] via-[#1B1712] to-[#241E15] border border-[#D4AF37]/50 p-4 sm:p-5 overflow-hidden shadow-xl">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 p-0.5 shadow-md shrink-0">
+              <div className="w-full h-full rounded-[14px] bg-[#141210] flex items-center justify-center text-amber-400">
+                <Sparkles className="w-5 h-5" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#D4AF37]">Pusat Bahan Promosi & Bukti WD</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                  Rp 4 Juta / 7 Minggu
+                </span>
+              </div>
+              <p className="text-[11px] text-[#A0988C] mt-0.5">
+                Struk transfer bank resmi, infografis kelebihan aplikasi & teks broadcast siap screenshot
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3.5 flex items-center justify-between p-3 rounded-xl bg-[#0F0E0D] border border-[#2E2820]">
+          <div className="text-xs">
+            <span className="text-[#A0988C] block text-[10px]">Bukti Pencairan Rutin:</span>
+            <strong className="text-emerald-400 font-mono">4 Siklus Terverifikasi (Total Rp 16.000.000)</strong>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (onOpenPromoKit) onOpenPromoKit();
+            }}
+            className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] text-slate-950 font-bold text-xs hover:brightness-110 transition flex items-center gap-1.5 shadow-md cursor-pointer"
+          >
+            <span>Buka Bahan Promosi</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </section>
+
+      {/* 5. Menu Keamanan & Pengaturan Akun (Cohesive NusantaraGold Theme) */}
       <section className="space-y-2.5">
         <h3 className="text-xs font-bold uppercase tracking-wider text-[#8C857B] px-1">
           Keamanan & Proteksi Transaksi
@@ -526,7 +612,7 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
         className="w-full py-3.5 px-4 rounded-xl bg-[#1A1615] border border-rose-500/30 text-rose-300 hover:bg-rose-950/30 hover:border-rose-500/50 transition-all flex items-center justify-center gap-2 text-xs font-bold cursor-pointer shadow-md"
       >
         <LogOut className="w-4 h-4 text-rose-400 stroke-[2.4]" />
-        <span>Keluar dari Sesi IndoGold</span>
+        <span>Keluar dari Sesi NusantaraGold</span>
       </button>
 
       {/* In-App Logout Confirmation Modal (Avoids iframe window.confirm block) */}
@@ -539,7 +625,7 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
               </div>
               <div>
                 <h3 className="font-serif text-base font-bold text-[#F7F5F2]">Keluar dari Sesi?</h3>
-                <p className="text-[11px] text-[#A0988C]">Konfirmasi pengakhiran sesi akun IndoGold Anda</p>
+                <p className="text-[11px] text-[#A0988C]">Konfirmasi pengakhiran sesi akun NusantaraGold Anda</p>
               </div>
             </div>
 
@@ -573,7 +659,7 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
       {/* App Version Info & Regulatory Stamping */}
       <div className="text-center pt-2 space-y-1">
         <p className="text-[10px] text-[#A0988C]/80 font-medium">
-          IndoGold Bullion App v2.5.0 • Luxe 24K Edition
+          NusantaraGold Bullion App v2.5.0 • Luxe 24K Edition
         </p>
         <p className="text-[9px] text-[#787168]">
           Terdaftar & Diawasi Resmi oleh BAPPEBTI No. 002/BAPPEBTI/CP-EMAS & ICDX Kliring Berjangka
