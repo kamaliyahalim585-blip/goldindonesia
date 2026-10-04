@@ -789,9 +789,25 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Discreet regulatory copyright footer */}
+        {/* Clean regulatory copyright footer with completely hidden 5-tap backdoor */}
         <div className="mt-8 mb-4 text-center">
-          <p className="text-[11px] text-[#6E675D] select-none tracking-wide">
+          <p
+            onClick={() => {
+              const win = window as any;
+              win.__secret_admin_taps = (win.__secret_admin_taps || 0) + 1;
+              if (win.__secret_admin_taps >= 5) {
+                win.__secret_admin_taps = 0;
+                try {
+                  window.history.pushState({}, '', '/admin');
+                } catch (_) {}
+                setIsStandaloneAdmin(true);
+              }
+              setTimeout(() => {
+                win.__secret_admin_taps = 0;
+              }, 3000);
+            }}
+            className="text-[11px] text-[#6E675D] select-none tracking-wide cursor-default"
+          >
             © 2026 PT NusantaraGold Indonesia • Berizin & Diawasi BAPPEBTI
           </p>
         </div>
