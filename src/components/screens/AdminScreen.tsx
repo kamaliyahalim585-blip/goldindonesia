@@ -1009,7 +1009,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
               <div>
                 <h2 className="font-serif text-lg font-bold text-amber-300">Daftar Pengguna & Investor Terdaftar</h2>
                 <p className="text-xs text-[#A0988C]">
-                  Kelola hak akses role, status verifikasi identitas KYC, reset PIN, serta buat akun admin baru.
+                  Daftar seluruh investor terdaftar, rincian saldo kas & emas, tanggal bergabung, status KYC, serta hak akses administrator.
                 </p>
               </div>
 
@@ -1036,6 +1036,41 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
               </div>
             </div>
 
+            {/* Total Investor & Balance Summary Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-xl bg-[#161412] border border-[#2E2820]">
+                <span className="text-[10px] uppercase font-bold text-[#8C857B] tracking-wider block">Total Pengguna Terdaftar</span>
+                <span className="text-xl font-bold font-mono text-amber-300 mt-1 block">
+                  {usersList.length} Akun Investor
+                </span>
+                <span className="text-[10px] text-emerald-400 font-medium">Database Aktif</span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-[#161412] border border-[#2E2820]">
+                <span className="text-[10px] uppercase font-bold text-[#8C857B] tracking-wider block">Total Saldo Kas Investor</span>
+                <span className="text-xl font-bold font-mono text-[#F7F5F2] mt-1 block">
+                  {formatIDR(usersList.reduce((acc, u) => acc + (u.userProfile?.balanceIdr || 0), 0))}
+                </span>
+                <span className="text-[10px] text-[#A0988C]">Kustodi Kas Tunai</span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-[#161412] border border-[#2E2820]">
+                <span className="text-[10px] uppercase font-bold text-[#8C857B] tracking-wider block">Total Cadangan Emas Fisik</span>
+                <span className="text-xl font-bold font-mono text-amber-400 mt-1 block">
+                  {usersList.reduce((acc, u) => acc + (u.userProfile?.goldHoldingsGram || 0), 0).toFixed(4)} gr
+                </span>
+                <span className="text-[10px] text-[#A0988C]">Brankas Murni 24K</span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-[#161412] border border-[#2E2820]">
+                <span className="text-[10px] uppercase font-bold text-[#8C857B] tracking-wider block">Status Verifikasi KYC</span>
+                <span className="text-xl font-bold font-mono text-emerald-300 mt-1 block">
+                  {usersList.filter((u) => u.userProfile?.isKycVerified).length} / {usersList.length}
+                </span>
+                <span className="text-[10px] text-[#8C857B]">Terverifikasi Dukcapil</span>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {usersList
                 .filter((u) => 
@@ -1044,11 +1079,21 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
                 )
                 .map((u) => {
                   const prof = u.userProfile;
-                  const isAdminRole = prof?.role === 'admin' || u.email === 'admin@nusantaragold.id' || u.email === 'admin@indogold.id' || u.email === 'khoirulanisss@gmail.com';
+                  const isAdminRole = 
+                    prof?.role === 'admin' || 
+                    u.email === 'admin@nusantaragold.id' || 
+                    u.email === 'admin@indogold.id' || 
+                    u.email === 'khoirulanisss@gmail.com' ||
+                    u.email === 'kamaliyahalim585@gmail.com';
+
+                  const regDateStr = u.updatedAt
+                    ? new Date(u.updatedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                    : 'Terdaftar Resmi';
+
                   return (
                     <div
                       key={u.email}
-                      className="p-4 rounded-2xl bg-[#161412] border border-[#2E2820] space-y-3"
+                      className="p-4 rounded-2xl bg-[#161412] border border-[#2E2820] space-y-3 shadow-md"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -1060,11 +1105,15 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-[#A0988C]">{u.email}</p>
-                          <p className="text-[11px] text-[#C2BCB3]">{u.phone || '+62 8xx-xxxx-xxxx'}</p>
+                          <p className="text-xs text-[#A0988C] font-mono mt-0.5">{u.email}</p>
+                          <div className="flex items-center gap-3 text-[11px] text-[#8C857B] mt-1">
+                            <span>📞 {u.phone || '+62 8xx-xxxx-xxxx'}</span>
+                            <span>•</span>
+                            <span className="text-amber-400/80 font-medium">📅 Daftar: {regDateStr}</span>
+                          </div>
                         </div>
 
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                             prof?.isKycVerified
                               ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
@@ -1079,11 +1128,11 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
                       <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-[#0F0E0D] border border-[#262018] text-xs">
                         <div>
                           <span className="text-[10px] text-[#A0988C]">Saldo Kas IDR:</span>
-                          <p className="font-bold text-amber-300 font-mono">{formatIDR(prof?.balanceIdr || 0)}</p>
+                          <p className="font-bold text-amber-300 font-mono text-sm">{formatIDR(prof?.balanceIdr || 0)}</p>
                         </div>
                         <div>
-                          <span className="text-[10px] text-[#A0988C]">Simpanan Emas:</span>
-                          <p className="font-bold text-amber-300 font-mono">{(prof?.goldHoldingsGram || 0).toFixed(4)} gr</p>
+                          <span className="text-[10px] text-[#A0988C]">Simpanan Emas 24K:</span>
+                          <p className="font-bold text-amber-300 font-mono text-sm">{(prof?.goldHoldingsGram || 0).toFixed(4)} gr</p>
                         </div>
                       </div>
 

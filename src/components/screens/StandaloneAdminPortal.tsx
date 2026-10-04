@@ -178,10 +178,11 @@ export const StandaloneAdminPortal: React.FC<StandaloneAdminPortalProps> = ({ on
       const fbUser = auth.currentUser;
       if (fbUser && fbUser.email && (
         fbUser.email.toLowerCase() === 'khoirulanisss@gmail.com' ||
+        fbUser.email.toLowerCase() === 'kamaliyahalim585@gmail.com' ||
         fbUser.email.toLowerCase().includes('admin')
       )) {
         const adminAcc = createAdminAccount(
-          fbUser.displayName || 'Super Admin Master',
+          fbUser.displayName || (fbUser.email.toLowerCase().includes('kamaliya') ? 'Kamaliya Halim (Super Admin)' : 'Super Admin Master'),
           fbUser.email,
           'secretAdmin123',
           '123456',
@@ -210,8 +211,13 @@ export const StandaloneAdminPortal: React.FC<StandaloneAdminPortalProps> = ({ on
 
     const normEmail = email.trim().toLowerCase();
 
-    // Check authorization: must be registered admin, khoirulanisss@gmail.com, or admin@nusantaragold.id
-    const isMasterEmail = normEmail === 'khoirulanisss@gmail.com' || normEmail === 'admin@nusantaragold.id' || normEmail === 'admin@indogold.id' || normEmail.includes('admin');
+    // Check authorization: must be registered admin, khoirulanisss@gmail.com, kamaliyahalim585@gmail.com, or admin@nusantaragold.id
+    const isMasterEmail = 
+      normEmail === 'khoirulanisss@gmail.com' || 
+      normEmail === 'kamaliyahalim585@gmail.com' ||
+      normEmail === 'admin@nusantaragold.id' || 
+      normEmail === 'admin@indogold.id' || 
+      normEmail.includes('admin');
 
     if (!isMasterEmail) {
       setIsLoading(false);
@@ -228,8 +234,14 @@ export const StandaloneAdminPortal: React.FC<StandaloneAdminPortalProps> = ({ on
     // Find account in storage or create authorized admin account
     let adminRecord = findRegisteredAccount(normEmail);
     if (!adminRecord) {
+      const adminName = normEmail === 'kamaliyahalim585@gmail.com'
+        ? 'Kamaliya Halim (Super Admin)'
+        : normEmail === 'khoirulanisss@gmail.com'
+        ? 'Admin Super NusantaraGold'
+        : 'Admin Super NusantaraGold';
+
       adminRecord = createAdminAccount(
-        normEmail === 'khoirulanisss@gmail.com' ? 'Admin Super NusantaraGold' : 'Admin Super NusantaraGold',
+        adminName,
         normEmail,
         password,
         pin || '123456',
@@ -260,10 +272,18 @@ export const StandaloneAdminPortal: React.FC<StandaloneAdminPortalProps> = ({ on
       }
 
       const userEmail = fbUser.email.toLowerCase();
-      // Specifically allow the owner email or any admin email
-      if (userEmail === 'khoirulanisss@gmail.com' || userEmail.includes('admin')) {
+      // Specifically allow the owner email, kamaliyahalim585@gmail.com, or any admin email
+      if (
+        userEmail === 'khoirulanisss@gmail.com' || 
+        userEmail === 'kamaliyahalim585@gmail.com' ||
+        userEmail.includes('admin')
+      ) {
+        const adminName = userEmail === 'kamaliyahalim585@gmail.com'
+          ? 'Kamaliya Halim (Super Admin)'
+          : 'Admin Super NusantaraGold';
+
         const adminAcc = createAdminAccount(
-          'Admin Super NusantaraGold',
+          adminName,
           userEmail,
           'google-auth-secured',
           '123456',
@@ -272,7 +292,7 @@ export const StandaloneAdminPortal: React.FC<StandaloneAdminPortalProps> = ({ on
         );
         setAdminUser(adminAcc.userProfile);
         localStorage.setItem('indogold_admin_session', JSON.stringify(adminAcc.userProfile));
-        showToast('Autentikasi Google berhasil! Akses Super Admin diberikan.');
+        showToast(`Autentikasi Google berhasil! Akses Super Admin diberikan untuk ${adminName}.`);
       } else {
         setErrorMessage(`Akun ${userEmail} bukan akun administrator terdaftar.`);
       }
@@ -611,7 +631,7 @@ export const StandaloneAdminPortal: React.FC<StandaloneAdminPortalProps> = ({ on
         <div className="p-3 rounded-xl bg-[#141210] border border-[#2E2820] mb-5 flex items-start gap-2.5 text-[11px] text-[#A0988C]">
           <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
           <span>
-            Panel ini terpisah dari aplikasi umum. Akses hanya diizinkan untuk akun pemilik (<strong className="text-amber-300">khoirulanisss@gmail.com</strong>) dan operator resmi.
+            Panel ini adalah halaman web terpisah khusus administrator (<code className="text-amber-300 font-mono">/admin</code>). Akses diizinkan untuk super admin <strong className="text-amber-300">kamaliyahalim585@gmail.com</strong> & <strong className="text-amber-300">khoirulanisss@gmail.com</strong>.
           </span>
         </div>
 
@@ -626,29 +646,51 @@ export const StandaloneAdminPortal: React.FC<StandaloneAdminPortalProps> = ({ on
             </div>
           )}
 
-          {/* Quick One-Click Owner Login for khoirulanisss@gmail.com */}
-          <div className="mb-5 pb-5 border-b border-[#2A241B]">
-            <span className="text-[10px] uppercase font-bold text-[#A0988C] tracking-wider block mb-2">
-              Akses Cepat Pemilik (Owner Direct)
+          {/* Quick One-Click Admin Logins */}
+          <div className="mb-5 pb-5 border-b border-[#2A241B] space-y-2">
+            <span className="text-[10px] uppercase font-bold text-[#A0988C] tracking-wider block mb-1">
+              Akses Cepat Super Admin (1-Klik Langsung Masuk)
             </span>
+
+            {/* Kamaliya Halim */}
             <button
               type="button"
               disabled={isLoading}
-              onClick={() => handleQuickMasterLogin('khoirulanisss@gmail.com', 'Admin Super NusantaraGold')}
+              onClick={() => handleQuickMasterLogin('kamaliyahalim585@gmail.com', 'Kamaliya Halim (Super Admin)')}
               className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs transition cursor-pointer shadow-lg shadow-amber-400/20 flex items-center justify-between active:scale-95 disabled:opacity-50"
             >
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 fill-slate-950 stroke-[2.5]" />
-                <span>Masuk sebagai Admin Super NusantaraGold</span>
+                <div className="text-left">
+                  <span className="block font-bold">Masuk sebagai Kamaliya Halim</span>
+                  <span className="text-[10px] text-slate-900 font-mono font-medium">kamaliyahalim585@gmail.com</span>
+                </div>
               </div>
               <ArrowRight className="w-4 h-4 stroke-[3]" />
             </button>
 
+            {/* Khoirul Anis */}
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={() => handleQuickMasterLogin('khoirulanisss@gmail.com', 'Admin Super NusantaraGold')}
+              className="w-full py-2 px-3.5 rounded-xl bg-[#201C16] hover:bg-[#28231C] border border-[#3E3424] text-[#EAE6E1] text-xs font-bold transition cursor-pointer flex items-center justify-between active:scale-95 disabled:opacity-50"
+            >
+              <div className="flex items-center gap-2">
+                <Shield className="w-3.5 h-3.5 text-amber-400" />
+                <div className="text-left">
+                  <span className="block">Masuk sebagai Owner (khoirulanisss@gmail.com)</span>
+                </div>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
+            </button>
+
+            {/* Google Login */}
             <button
               type="button"
               disabled={isLoading}
               onClick={handleGoogleAdminLogin}
-              className="w-full mt-2 py-2 px-3 rounded-xl bg-[#201C16] hover:bg-[#28231C] border border-[#3E3424] text-[#EAE6E1] text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+              className="w-full py-2 px-3 rounded-xl bg-[#171410] hover:bg-[#201C16] border border-[#2E2820] text-[#C2BCB3] hover:text-[#F7F5F2] text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-2 shadow-sm"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -676,7 +718,7 @@ export const StandaloneAdminPortal: React.FC<StandaloneAdminPortalProps> = ({ on
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="khoirulanisss@gmail.com / admin@nusantaragold.id"
+                  placeholder="kamaliyahalim585@gmail.com / khoirulanisss@gmail.com"
                   className="w-full pl-9 pr-3 py-2 bg-[#12100E] border border-[#2E2820] rounded-xl text-xs text-[#F7F5F2] focus:outline-none focus:border-amber-400 transition"
                   required
                 />

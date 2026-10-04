@@ -68,7 +68,8 @@ export function isUserAdmin(user?: UserAccount | null): boolean {
     user.role === 'admin' ||
     email === 'admin@nusantaragold.id' ||
     email === 'admin@indogold.id' ||
-    email === 'khoirulanisss@gmail.com'
+    email === 'khoirulanisss@gmail.com' ||
+    email === 'kamaliyahalim585@gmail.com'
   );
 }
 

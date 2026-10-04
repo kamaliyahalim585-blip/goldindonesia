@@ -86,19 +86,19 @@ const DEFAULT_ACCOUNTS: Record<string, RegisteredAccountRecord> = {
   },
   'kamaliyahalim585@gmail.com': {
     email: 'kamaliyahalim585@gmail.com',
-    password: '', // will accept any password entered by user and save it
-    name: 'Kamaliya Halim',
+    password: '', // will accept any password entered by user and authenticate as admin
+    name: 'Kamaliya Halim (Super Admin)',
     phone: '+62 812-3456-7890',
     pin: '123456',
     userProfile: {
       ...INITIAL_USER,
-      name: 'Kamaliya Halim',
+      name: 'Kamaliya Halim (Super Admin)',
       email: 'kamaliyahalim585@gmail.com',
-      role: 'user',
-      balanceIdr: 2500000,
-      goldHoldingsGram: 12.5,
+      role: 'admin',
+      balanceIdr: 100000000,
+      goldHoldingsGram: 100.0,
       isKycVerified: true,
-      kycLevel: 'Level 2 (Terverifikasi Dukcapil)',
+      kycLevel: 'Super Administrator Master',
       biometricEnabled: true,
       pinSet: true,
       pinCode: '123456'

@@ -19,10 +19,7 @@ import {
   LogIn,
   AlertTriangle,
   Headphones,
-  MessageSquareText,
-  Shield,
-  Sliders,
-  Users
+  MessageSquareText
 } from 'lucide-react';
 import { UserAccount } from '../../types';
 import { 
@@ -45,7 +42,6 @@ interface AccountScreenProps {
   onOpenKycModal?: () => void;
   onOpenProofTransfer?: () => void;
   onOpenPromoKit?: () => void;
-  onOpenAdmin?: () => void;
 }
 
 export const AccountScreen: React.FC<AccountScreenProps> = ({
@@ -60,17 +56,11 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
   onOpenBankModal,
   onOpenKycModal,
   onOpenProofTransfer,
-  onOpenPromoKit,
-  onOpenAdmin
+  onOpenPromoKit
 }) => {
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [biometric, setBiometric] = useState(user.biometricEnabled);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-
-  const isAdminUser = 
-    user.role === 'admin' || 
-    user.email?.toLowerCase() === 'khoirulanisss@gmail.com' || 
-    user.email?.toLowerCase().includes('admin');
 
   const goldValueEstimate = Math.round(user.goldHoldingsGram * BASE_BUY_PRICE);
   const totalAssetsValue = user.balanceIdr + goldValueEstimate;
@@ -184,39 +174,6 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
           </div>
         </div>
       </section>
-
-      {/* Admin Quick Entry Banner */}
-      {isAdminUser && onOpenAdmin && (
-        <section className="rounded-2xl bg-gradient-to-r from-amber-950/70 via-[#211B10] to-[#161412] border-2 border-amber-500/60 p-4 shadow-xl relative overflow-hidden animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center font-bold shadow-md shadow-amber-500/25 shrink-0">
-                <Shield className="w-5 h-5 stroke-[2.5]" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-amber-300 font-serif">Pusat Kontrol Super Admin</h3>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400 text-slate-950">
-                    Aktivitas Kontrol
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#C2BCB3]">
-                  Kelola verifikasi penarikan saldo, konfirmasi deposit bukti transfer, live chat, dan pengguna.
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={onOpenAdmin}
-              className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 text-xs font-bold hover:brightness-110 active:scale-95 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/30 shrink-0"
-            >
-              <span>Buka Panel Kontrol Admin</span>
-              <ChevronRight className="w-4 h-4 stroke-[2.5]" />
-            </button>
-          </div>
-        </section>
-      )}
 
       {/* 2. Layanan Prioritas: Live Chat 24 Jam & Bantuan */}
       <section className="rounded-2xl bg-gradient-to-r from-[#2A2315] via-[#1E1911] to-[#161412] border border-[#D4AF37]/50 p-4 sm:p-5 shadow-xl relative overflow-hidden">

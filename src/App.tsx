@@ -78,10 +78,18 @@ export default function App() {
 
   const checkIsAdminRoute = () => {
     if (typeof window === 'undefined') return false;
+    if (import.meta.env.VITE_STANDALONE_ADMIN_PORTAL === 'true') return true;
     const path = window.location.pathname.toLowerCase();
     const search = window.location.search.toLowerCase();
     const hash = window.location.hash.toLowerCase();
-    return path === '/admin' || path.startsWith('/admin/') || search.includes('admin') || hash.includes('admin');
+    return (
+      path === '/admin' || 
+      path.startsWith('/admin/') || 
+      path === '/portal-admin' ||
+      path.startsWith('/portal-admin/') ||
+      search.includes('admin') || 
+      hash.includes('admin')
+    );
   };
 
   const [isStandaloneAdmin, setIsStandaloneAdmin] = useState<boolean>(() => checkIsAdminRoute());
@@ -587,6 +595,15 @@ export default function App() {
     return (
       <StandaloneAdminPortal
         onBackToApp={() => {
+          if (import.meta.env.VITE_STANDALONE_ADMIN_PORTAL === 'true') {
+            const externalAppUrl = import.meta.env.VITE_INVESTOR_APP_URL;
+            if (externalAppUrl) {
+              window.location.href = externalAppUrl;
+            } else {
+              showToast('Ini adalah server web khusus portal administrator terpisah.');
+            }
+            return;
+          }
           try {
             window.history.pushState({}, '', '/');
           } catch (_) {}
@@ -767,35 +784,16 @@ export default function App() {
                 onOpenKycModal={() => setActiveModal('kyc')}
                 onOpenProofTransfer={() => setActiveModal('proof_transfer')}
                 onOpenPromoKit={() => setActiveModal('promo_kit')}
-                onOpenAdmin={() => setIsStandaloneAdmin(true)}
               />
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Discreet regulatory copyright footer with multi-tap trigger for owner */}
+        {/* Discreet regulatory copyright footer */}
         <div className="mt-8 mb-4 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              const currentWindow = window as any;
-              currentWindow.__admin_tap_count = (currentWindow.__admin_tap_count || 0) + 1;
-              if (currentWindow.__admin_tap_count >= 5) {
-                currentWindow.__admin_tap_count = 0;
-                try {
-                  window.history.pushState({}, '', '?admin=portal');
-                } catch (_) {}
-                setIsStandaloneAdmin(true);
-              }
-              setTimeout(() => {
-                currentWindow.__admin_tap_count = 0;
-              }, 3000);
-            }}
-            className="text-[11px] text-[#6E675D] hover:text-[#A0988C] transition cursor-default select-none tracking-wide"
-            title="NusantaraGold Indonesia"
-          >
+          <p className="text-[11px] text-[#6E675D] select-none tracking-wide">
             © 2026 PT NusantaraGold Indonesia • Berizin & Diawasi BAPPEBTI
-          </button>
+          </p>
         </div>
       </main>
 
