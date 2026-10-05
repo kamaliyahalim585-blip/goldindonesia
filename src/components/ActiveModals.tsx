@@ -27,7 +27,9 @@ import { PinVerificationModal } from './PinVerificationModal';
 import { LiveChatModal } from './modals/LiveChatModal';
 import { PromoKitModal } from './modals/PromoKitModal';
 import { TransferEmasModal } from './modals/TransferEmasModal';
+import { EmiratesPackagesModal } from './modals/EmiratesPackagesModal';
 import { BASE_BUY_PRICE } from '../data/mockData';
+import { EmiratesPackage } from '../types';
 
 export type ActiveModalType = 
   | 'articles' 
@@ -40,6 +42,7 @@ export type ActiveModalType =
   | 'proof_transfer'
   | 'promo_kit'
   | 'transfer_emas'
+  | 'emirates_packages'
   | null;
 
 interface ActiveModalsProps {
@@ -52,6 +55,8 @@ interface ActiveModalsProps {
   onSubmitProof?: (newTx: Transaction, amount: number) => void;
   onTransferEmas?: (updated: Partial<UserAccount>, newTx: Transaction) => void;
   onStartTrade?: (type: 'buy' | 'sell') => void;
+  onActivatePackage?: (pkg: EmiratesPackage) => void;
+  onGoToDeposit?: (suggestedAmount: number) => void;
 }
 
 export const ActiveModals: React.FC<ActiveModalsProps> = ({
@@ -63,9 +68,32 @@ export const ActiveModals: React.FC<ActiveModalsProps> = ({
   onShowToast,
   onSubmitProof,
   onTransferEmas,
-  onStartTrade
+  onStartTrade,
+  onActivatePackage,
+  onGoToDeposit
 }) => {
   if (!activeModal) return null;
+
+  {/* Modul Paket Investasi Emirates Gold 24K */}
+  if (activeModal === 'emirates_packages') {
+    return (
+      <EmiratesPackagesModal
+        user={user}
+        onClose={onClose}
+        onActivatePackage={(pkg) => {
+          if (onActivatePackage) {
+            onActivatePackage(pkg);
+          } else {
+            onShowToast(`Paket ${pkg.name} berhasil diinvestasikan!`);
+          }
+        }}
+        onGoToDeposit={(amt) => {
+          if (onGoToDeposit) onGoToDeposit(amt);
+        }}
+        onShowToast={onShowToast}
+      />
+    );
+  }
 
   {/* Modul Transfer Emas */}
   if (activeModal === 'transfer_emas') {

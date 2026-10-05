@@ -50,6 +50,7 @@ interface HomeScreenProps {
   onOpenProofTransfer?: () => void;
   onOpenPromoKit?: () => void;
   onOpenTransferEmas?: () => void;
+  onOpenEmiratesPackages?: () => void;
   onOpenHelp?: () => void;
   onOpenNotifications?: () => void;
 }
@@ -67,6 +68,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenProofTransfer,
   onOpenPromoKit,
   onOpenTransferEmas,
+  onOpenEmiratesPackages,
   onOpenHelp,
   onOpenNotifications
 }) => {
@@ -380,6 +382,146 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <p className="text-[10px] text-[#8C857B] mt-0.5 font-medium leading-tight">Standar SNI & LBMA</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Program Eksklusif: Paket Investasi Emirates Gold 24K (Bonus s/d 25%) */}
+      <section className="relative rounded-3xl overflow-hidden border-2 border-amber-500/50 bg-gradient-to-b from-[#241E14] via-[#1A1610] to-[#12100E] p-4 sm:p-5 shadow-2xl">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-400/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-[#D4AF37]/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 space-y-3.5">
+          {/* Header Banner */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-[#8C6D23] flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-amber-500/25 shrink-0">
+                <Award className="w-5 h-5 stroke-[2.4]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                    Paket Unggulan
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/70 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                    Cashback s/d 25%
+                  </span>
+                </div>
+                <h3 className="font-serif text-base sm:text-lg font-bold text-[#F7F5F2] mt-0.5">
+                  Paket Investasi Emirates Gold 24K
+                </h3>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenEmiratesPackages}
+              className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-gradient-to-r from-[#D4AF37] to-amber-300 text-slate-950 text-xs font-bold hover:brightness-110 transition shadow cursor-pointer shrink-0"
+            >
+              <span>Buka Semua Paket</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <p className="text-xs text-[#C2BCB3] leading-relaxed">
+            Dapatkan fisik emas batangan murni berlisensi Dubai <strong className="text-amber-300">Emirates Gold 24K</strong> dengan bonus cashback tunai langsung cair ke saldo kas Anda:
+          </p>
+
+          {/* 3 Package Mini Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {/* Bronze Card */}
+            <div 
+              onClick={onOpenEmiratesPackages}
+              className="p-3 rounded-2xl bg-[#141210] border border-[#CD7F32]/50 hover:border-[#CD7F32] transition-all cursor-pointer group shadow-sm flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#E8A87C]">
+                    Tier Bronze
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-[#CD7F32]/20 text-[#E8A87C] border border-[#CD7F32]/40">
+                    Bonus +8%
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <span className="font-mono text-base font-extrabold text-[#F7F5F2]">Rp 15 Juta</span>
+                  <div className="text-[11px] text-amber-300 font-semibold mt-0.5">
+                    Fisik Emirates Gold 10 gr
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 pt-2 border-t border-[#262018] flex items-center justify-between text-[11px]">
+                <span className="text-[#8C857B]">Cashback:</span>
+                <span className="text-emerald-400 font-bold font-mono">+Rp 1.200.000</span>
+              </div>
+            </div>
+
+            {/* Gold Card */}
+            <div 
+              onClick={onOpenEmiratesPackages}
+              className="p-3 rounded-2xl bg-[#17140F] border-2 border-amber-400/70 hover:border-amber-400 transition-all cursor-pointer group shadow-md shadow-amber-500/10 flex flex-col justify-between relative"
+            >
+              <span className="absolute -top-2.5 right-3 text-[9px] font-bold px-2 py-0.2 rounded-full bg-gradient-to-r from-amber-400 to-[#D4AF37] text-slate-950 shadow">
+                Paling Favorit
+              </span>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                    Tier Gold
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                    Bonus +18%
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <span className="font-mono text-base font-extrabold text-[#F7F5F2]">Rp 25 Juta</span>
+                  <div className="text-[11px] text-amber-300 font-semibold mt-0.5">
+                    Fisik Emirates Gold 17.5 gr
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 pt-2 border-t border-[#2E281C] flex items-center justify-between text-[11px]">
+                <span className="text-[#8C857B]">Cashback:</span>
+                <span className="text-emerald-400 font-bold font-mono">+Rp 4.500.000</span>
+              </div>
+            </div>
+
+            {/* Platinum Card */}
+            <div 
+              onClick={onOpenEmiratesPackages}
+              className="p-3 rounded-2xl bg-[#141210] border border-cyan-400/50 hover:border-cyan-300 transition-all cursor-pointer group shadow-sm flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+                    Tier Platinum
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-cyan-400/20 text-cyan-200 border border-cyan-400/40">
+                    Bonus +25%
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <span className="font-mono text-base font-extrabold text-[#F7F5F2]">Rp 50 Juta</span>
+                  <div className="text-[11px] text-amber-300 font-semibold mt-0.5">
+                    Fisik Emirates Gold 35 gr
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 pt-2 border-t border-[#262018] flex items-center justify-between text-[11px]">
+                <span className="text-[#8C857B]">Cashback:</span>
+                <span className="text-emerald-400 font-bold font-mono">+Rp 12.500.000</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Button on Mobile */}
+          <button
+            type="button"
+            onClick={onOpenEmiratesPackages}
+            className="w-full sm:hidden py-3 px-4 rounded-xl bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] text-slate-950 font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 transition cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Pilih Paket Emirates & Ambil Cashback</span>
+          </button>
         </div>
       </section>
 

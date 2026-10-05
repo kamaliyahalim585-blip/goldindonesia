@@ -15,7 +15,12 @@ import {
   Sparkles,
   Info,
   ChevronDown,
-  X
+  X,
+  Users,
+  Share2,
+  Lock,
+  Unlock,
+  Gift
 } from 'lucide-react';
 import { Transaction, UserAccount, WalletActionType } from '../../types';
 import { 
@@ -35,6 +40,7 @@ interface WalletScreenProps {
   onCompleteTransaction: (transaction: Transaction, newBalance: number, newGoldHoldings: number) => void;
   onBack?: () => void;
   onShowToast?: (msg: string) => void;
+  onUpdateUser?: (updated: Partial<UserAccount>) => void;
 }
 
 const QUICK_AMOUNTS = [100000, 500000, 1000000, 5000000, 10000000];
@@ -44,7 +50,8 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
   initialAction = 'deposit',
   onCompleteTransaction,
   onBack,
-  onShowToast
+  onShowToast,
+  onUpdateUser
 }) => {
   const [actionType, setActionType] = useState<WalletActionType>(initialAction);
   const [amountStr, setAmountStr] = useState<string>('1000000');
@@ -62,9 +69,42 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
   const [destinationAccount, setDestinationAccount] = useState<string>('8271 0812 3456');
   const [accountHolderName, setAccountHolderName] = useState<string>(user.name || '');
   const [showMinWithdrawalNotice, setShowMinWithdrawalNotice] = useState<boolean>(false);
+  const [showReferralLockedNotice, setShowReferralLockedNotice] = useState<boolean>(false);
+  const [copiedReferral, setCopiedReferral] = useState<boolean>(false);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Real-time Referral Target Calculation: Minimal 10 orang terdaftar
+  const currentReferrals = user.referralCount ?? 0;
+  const isWithdrawalUnlocked = currentReferrals >= 10;
+  const remainingReferralsNeeded = Math.max(0, 10 - currentReferrals);
+  const referralProgressPct = Math.min(100, Math.round((currentReferrals / 10) * 100));
+
+  const handleSimulateAddReferral = () => {
+    const nextCount = currentReferrals + 1;
+    if (onUpdateUser) {
+      onUpdateUser({ referralCount: nextCount });
+    }
+    if (onShowToast) {
+      onShowToast(`Simulasi Demo: +1 Teman baru terdaftar! Total undangan: ${nextCount}/10.`);
+    }
+  };
+
+  const handleCopyReferral = () => {
+    navigator.clipboard.writeText(user.referralCode || 'NGOLD2026');
+    setCopiedReferral(true);
+    if (onShowToast) {
+      onShowToast(`Kode referral ${user.referralCode} berhasil disalin!`);
+    }
+    setTimeout(() => setCopiedReferral(false), 2000);
+  };
+
+  const handleShareReferral = () => {
+    const shareText = `Halo! Yuk gabung investasi emas batangan 24K berizin di NusantaraGold. Dapatkan bonus pendaftaran hingga Rp 30.000 dan komisi referral 3%! Gunakan kode undangan saya: ${user.referralCode || 'NGOLD2026'}`;
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+    window.open(url, '_blank');
+  };
 
   const parsedAmount = parseInt(amountStr.replace(/[^0-9]/g, ''), 10) || 0;
 
@@ -114,6 +154,17 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
   });
 
   const handleWithdrawalSubmit = () => {
+    // Syarat Target Undang Teman: Minimal 10 orang terdaftar
+    if (currentReferrals < 10) {
+      const lockMsg = `Penarikan Terkunci: Sesuai regulasi platform, Anda wajib mengundang minimal 10 orang terdaftar sebelum penarikan dana dibuka (saat ini ${currentReferrals}/10 teman, kurang ${remainingReferralsNeeded} teman lagi).`;
+      setErrorMessage(lockMsg);
+      setShowReferralLockedNotice(true);
+      if (onShowToast) {
+        onShowToast(`Penarikan terkunci: Wajib mengundang minimal 10 teman (${currentReferrals}/10).`);
+      }
+      return;
+    }
+
     if (parsedAmount < 100000) {
       const minMsg = 'Syarat Penarikan: Nominal penarikan dana minimal adalah Rp 100.000.';
       setErrorMessage(minMsg);
@@ -458,6 +509,122 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
       ======================= */}
       {actionType === 'tarik' && (
         <div className="space-y-5">
+          {/* Target Undang Teman Realtime: Minimal 10 Orang + Bonus 3% Deposit */}
+          <section className={`rounded-2xl border p-4 sm:p-5 shadow-lg relative overflow-hidden transition-all ${
+            isWithdrawalUnlocked 
+              ? 'bg-gradient-to-r from-emerald-950/40 via-[#181613] to-[#12100E] border-emerald-500/50 shadow-emerald-500/10'
+              : 'bg-gradient-to-r from-purple-950/50 via-[#1E1815] to-[#141210] border-purple-500/60 shadow-purple-500/15'
+          }`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#2C241B]">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold shrink-0 ${
+                  isWithdrawalUnlocked
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                    : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                }`}>
+                  <Users className="w-5 h-5 stroke-[2.3]" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-serif text-sm sm:text-base font-bold text-[#F7F5F2]">
+                      Target Undang Teman (Syarat Penarikan)
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-[#A0988C]">
+                    Wajib minimal 10 teman terdaftar untuk membuka akses pencairan dana
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Badge */}
+              <div className="self-start sm:self-auto">
+                {isWithdrawalUnlocked ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/90 border border-emerald-500/60 text-emerald-300 text-xs font-bold shadow-sm">
+                    <Unlock className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Syarat Terpenuhi (Terbuka)</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-950/90 border border-purple-500/60 text-purple-300 text-xs font-bold shadow-sm">
+                    <Lock className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Terkunci (Kurang {remainingReferralsNeeded} Orang)</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Realtime Progress Bar */}
+            <div className="mt-3.5 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[#A0988C]">
+                  Progress Real-Time: <strong className="text-[#F7F5F2] font-mono">{currentReferrals} / 10 Teman</strong>
+                </span>
+                <span className={`font-mono font-bold ${isWithdrawalUnlocked ? 'text-emerald-400' : 'text-purple-300'}`}>
+                  {referralProgressPct}%
+                </span>
+              </div>
+              <div className="w-full h-3 rounded-full bg-[#0D0C0B] border border-[#2B231A] overflow-hidden p-0.5">
+                <div 
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    isWithdrawalUnlocked 
+                      ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                      : 'bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500'
+                  }`}
+                  style={{ width: `${referralProgressPct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Bonus 3% Explanation Card */}
+            <div className="mt-3.5 p-3 rounded-xl bg-[#0D0C0B] border border-[#2B241A] flex items-start gap-2.5">
+              <Gift className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-[11.5px] text-[#C2BCB3] leading-relaxed">
+                <strong className="text-amber-300 font-semibold">Bonus Komisi 3% Real-time:</strong> Setiap teman yang Anda undang melakukan <span className="text-white font-semibold">deposit minimal Rp 500.000</span>, Anda otomatis menerima komisi tunai <strong className="text-emerald-400">3%</strong> dari nominal deposit langsung ke saldo kas Anda!
+                <div className="mt-1 text-[10px] text-[#8C857B] font-mono">
+                  Contoh: Teman deposit Rp 500.000 &rarr; Bonus Anda Rp 15.000 | Deposit Rp 10.000.000 &rarr; Bonus Anda Rp 300.000
+                </div>
+              </div>
+            </div>
+
+            {/* Referral Tools Bar: Copy Code + WhatsApp Share + Test Simulator */}
+            <div className="mt-3.5 pt-3 border-t border-[#262018] flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-[#8C857B]">Kode Anda:</span>
+                <span className="px-2 py-0.5 rounded-lg bg-[#1F1B16] border border-[#3E3424] font-mono text-xs font-bold text-amber-300">
+                  {user.referralCode || 'NGOLD2026'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyReferral}
+                  className="py-1 px-2.5 rounded-lg bg-[#2A2318] hover:bg-[#362C1E] text-amber-300 text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer"
+                >
+                  {copiedReferral ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedReferral ? 'Tersalin' : 'Salin'}</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleShareReferral}
+                  className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[11px] font-bold hover:brightness-110 transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Ajak Teman</span>
+                </button>
+
+                {/* Simulator Tambah Teman (Mempermudah Pengujian/Demo) */}
+                <button
+                  type="button"
+                  onClick={handleSimulateAddReferral}
+                  className="py-1 px-2.5 rounded-xl bg-[#201D1A] hover:bg-[#2B2723] border border-[#3A3226] text-[#A0988C] hover:text-[#F7F5F2] text-[10.5px] font-medium transition cursor-pointer"
+                  title="Simulasi tambah 1 referral untuk kemudahan uji coba penarikan"
+                >
+                  <span>+1 Demo</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
           {/* Amount Input */}
           <section className="bg-[#161412] rounded-2xl border border-[#2E2820] p-4 sm:p-5 space-y-4 shadow-md">
             <div className="flex justify-between items-center">
@@ -699,6 +866,8 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
               className={`w-full py-4 px-6 rounded-2xl text-xs sm:text-sm font-extrabold tracking-wide uppercase transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-xl ${
                 isProcessing || parsedAmount <= 0
                   ? 'bg-[#201D1A] text-[#7E776E] border border-[#2E2820] cursor-not-allowed'
+                  : !isWithdrawalUnlocked
+                  ? 'bg-gradient-to-r from-purple-900 to-indigo-950 text-purple-200 border-2 border-purple-500/50 hover:border-purple-400 active:scale-[0.99]'
                   : 'bg-gradient-to-r from-purple-500 via-fuchsia-600 to-pink-600 hover:from-purple-400 hover:to-pink-500 text-white shadow-[0_4px_25px_rgba(168,85,247,0.45)] border-2 border-purple-300 active:scale-[0.99]'
               }`}
             >
@@ -706,6 +875,11 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
                 <>
                   <div className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
                   <span>Memproses Penarikan Dana...</span>
+                </>
+              ) : !isWithdrawalUnlocked ? (
+                <>
+                  <Lock className="w-5 h-5 text-purple-400 stroke-[2.5]" />
+                  <span>Penarikan Terkunci (Wajib 10 Teman: {currentReferrals}/10)</span>
                 </>
               ) : (
                 <>
@@ -808,6 +982,97 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
                   className="py-2.5 px-4 rounded-xl bg-[#201D1A] border border-[#332C24] text-xs font-semibold text-[#A0988C] hover:text-[#F7F5F2] transition cursor-pointer"
                 >
                   Saya Mengerti
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Peringatan Target Undang Teman (Minimal 10 Orang) */}
+      {showReferralLockedNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-md bg-[#161412] border-2 border-purple-500/70 rounded-3xl overflow-hidden shadow-2xl animate-scale-up text-[#F7F5F2]">
+            <div className="p-4 sm:p-5 border-b border-[#2C241B] bg-gradient-to-r from-purple-950/60 via-[#1C1713] to-purple-950/60 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-400/50 flex items-center justify-center text-purple-300 shadow-md">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-base font-bold text-[#F7F5F2]">Penarikan Belum Terbuka</h3>
+                  <p className="text-[11px] text-purple-300 font-mono">Syarat: Minimal 10 Teman Terdaftar</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReferralLockedNotice(false)}
+                className="w-8 h-8 rounded-full bg-[#0F0E0D] border border-[#2E2820] flex items-center justify-center text-[#9E978E] hover:text-[#F7F5F2] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-4 rounded-2xl bg-[#0F0E0D] border border-[#2E261D] text-center space-y-2">
+                <span className="text-[11px] text-[#A0988C] uppercase tracking-wider block font-semibold">
+                  Progress Real-Time Undangan Anda
+                </span>
+                <div className="flex items-baseline justify-center gap-1 font-mono">
+                  <span className="text-3xl font-extrabold text-purple-300">{currentReferrals}</span>
+                  <span className="text-lg text-[#8C857B]">/ 10 Orang</span>
+                </div>
+                <div className="w-full h-2.5 rounded-full bg-[#1A1815] overflow-hidden p-0.5">
+                  <div 
+                    className="h-full rounded-full bg-gradient-to-r from-purple-500 to-fuchsia-500 transition-all"
+                    style={{ width: `${referralProgressPct}%` }}
+                  />
+                </div>
+                <p className="text-xs text-amber-300 font-semibold mt-1">
+                  Ajak {remainingReferralsNeeded} teman lagi untuk membuka akses pencairan dana tunai!
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-purple-950/20 border border-purple-500/30 text-xs text-[#C5BCB0] space-y-1.5">
+                <div className="flex items-center gap-2 text-purple-300 font-bold">
+                  <Gift className="w-4 h-4 text-amber-400" />
+                  <span>Dapatkan Bonus 3% dari Setiap Teman</span>
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  Setiap rekan yang Anda undang melakukan deposit minimal <strong>Rp 500.000</strong>, Anda otomatis memperoleh komisi bonus <strong>3%</strong> langsung cair ke saldo kas Anda.
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleShareReferral();
+                    setShowReferralLockedNotice(false);
+                  }}
+                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Ajak Teman via WhatsApp</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSimulateAddReferral();
+                    if (currentReferrals + 1 >= 10) {
+                      setShowReferralLockedNotice(false);
+                    }
+                  }}
+                  className="py-3 px-3 rounded-xl bg-[#231E18] hover:bg-[#2F2920] border border-[#3E3424] text-xs font-semibold text-amber-300 hover:text-amber-200 transition cursor-pointer text-center"
+                  title="Simulasi Tambah 1 Referral Demo"
+                >
+                  <span>+1 Demo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowReferralLockedNotice(false)}
+                  className="py-3 px-4 rounded-xl bg-[#1C1814] border border-[#2F271D] text-xs font-semibold text-[#A0988C] hover:text-[#F7F5F2] transition cursor-pointer"
+                >
+                  Tutup
                 </button>
               </div>
             </div>

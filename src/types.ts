@@ -76,6 +76,69 @@ export interface PaymentMethodItem {
   feeText: string;
 }
 
+export interface KycData {
+  nik: string;
+  fullName: string;
+  ktpPhoto?: string;
+  selfiePhoto?: string;
+  address?: string;
+  submittedAt?: number;
+  rejectionReason?: string;
+}
+
+export type KycStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
+
+export interface KycVerificationRecord {
+  id: string;
+  userId?: string;
+  userEmail: string;
+  userName: string;
+  userPhone?: string;
+  nik: string;
+  ktpPhoto: string;
+  selfiePhoto: string;
+  address?: string;
+  status: KycStatus;
+  submittedAt: number;
+  reviewedAt?: number;
+  reviewedBy?: string;
+  rejectionReason?: string;
+}
+
+export interface EmiratesPackage {
+  id: 'bronze' | 'gold' | 'platinum';
+  name: string;
+  tier: 'Bronze' | 'Gold' | 'Platinum';
+  priceIdr: number;
+  goldBrand: 'Emirates Gold';
+  goldGrams: number;
+  bonusPercent: number;
+  bonusAmountIdr: number;
+  badge: string;
+  colorScheme: {
+    from: string;
+    to: string;
+    border: string;
+    accent: string;
+    textAccent: string;
+    glow: string;
+  };
+  features: string[];
+  description: string;
+}
+
+export interface UserPackage {
+  id: string;
+  packageId: 'bronze' | 'gold' | 'platinum';
+  packageName: string;
+  priceIdr: number;
+  goldGrams: number;
+  bonusPercent: number;
+  bonusAmountIdr: number;
+  purchasedAt: number;
+  status: 'active' | 'completed';
+}
+
 export interface UserAccount {
   uid?: string;
   name: string;
@@ -83,6 +146,8 @@ export interface UserAccount {
   phone: string;
   isKycVerified: boolean;
   kycLevel: string;
+  kycStatus?: KycStatus;
+  kycData?: KycData;
   referralCode: string;
   referralBonus: number;
   balanceIdr: number;
@@ -94,7 +159,9 @@ export interface UserAccount {
   dailyProfitEarnedTotal?: number;
   lastDailyProfitClaimDate?: string;
   referralCount?: number;
+  referredBy?: string;
   role?: 'user' | 'admin';
+  activePackages?: UserPackage[];
 }
 
 export interface ChatMessage {

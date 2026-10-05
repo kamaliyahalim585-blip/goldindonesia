@@ -25,9 +25,12 @@ import {
   Shield,
   FileCheck,
   Check,
-  X
+  X,
+  Camera,
+  Upload,
+  UserCheck2
 } from 'lucide-react';
-import { Transaction, UserAccount, ChatSession, ChatMessage } from '../../types';
+import { Transaction, UserAccount, ChatSession, ChatMessage, KycVerificationRecord } from '../../types';
 import { 
   getAllPlatformTransactions, 
   approveWithdrawal, 
@@ -52,7 +55,10 @@ import {
   subscribeToGoldPrice,
   syncFirestoreChatSessionsToLocal,
   syncFirestoreTransactionsToLocal,
-  reconcileAllPlatformActivities
+  reconcileAllPlatformActivities,
+  getAllKycVerifications,
+  approveKycVerification,
+  rejectKycVerification
 } from '../../services/adminService';
 import { RegisteredAccountRecord, createAdminAccount } from '../../services/authStorage';
 import { formatIDR } from '../../data/mockData';
@@ -65,7 +71,7 @@ export interface AdminScreenProps {
   onTabChange?: (tab: AdminTab) => void;
 }
 
-export type AdminTab = 'withdrawals' | 'deposits' | 'chat' | 'users' | 'price' | 'overview';
+export type AdminTab = 'withdrawals' | 'deposits' | 'chat' | 'users' | 'price' | 'overview' | 'kyc';
 
 export const AdminScreen: React.FC<AdminScreenProps> = ({
   currentAdmin,
@@ -124,6 +130,14 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
   // Preview Proof Slip modal
   const [previewProofUrl, setPreviewProofUrl] = useState<string | null>(null);
 
+  // KYC Verifications State
+  const [kycList, setKycList] = useState<KycVerificationRecord[]>([]);
+  const [kycStatusFilter, setKycStatusFilter] = useState<'all' | 'pending' | 'verified' | 'rejected'>('all');
+  const [kycSearch, setKycSearch] = useState('');
+  const [previewKycModalItem, setPreviewKycModalItem] = useState<KycVerificationRecord | null>(null);
+  const [rejectKycModalItem, setRejectKycModalItem] = useState<KycVerificationRecord | null>(null);
+  const [rejectKycReason, setRejectKycReason] = useState('Foto KTP buram atau tidak terbaca dengan jelas');
+
   // Load all platform data from local storage and remote Firestore
   const loadData = async () => {
     // 1. Immediate local load
@@ -139,6 +153,9 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
 
     const users = getAllUsersList();
     setUsersList(users);
+
+    const kycs = getAllKycVerifications();
+    setKycList(kycs);
 
     const price = getGoldPriceConfig();
     setPriceConfigState(price);
@@ -336,6 +353,40 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
     loadData();
   };
 
+  // 7. Handle KYC Verifications
+  const handleApproveKyc = async (kycId: string, email: string) => {
+    const res = await approveKycVerification(kycId, email, currentAdmin.name);
+    onShowToast(res.message);
+    loadData();
+  };
+
+  const handleConfirmRejectKyc = async () => {
+    if (!rejectKycModalItem) return;
+    const res = await rejectKycVerification(
+      rejectKycModalItem.id, 
+      rejectKycModalItem.userEmail, 
+      rejectKycReason, 
+      currentAdmin.name
+    );
+    onShowToast(res.message);
+    setRejectKycModalItem(null);
+    setRejectKycReason('Foto KTP buram atau tidak terbaca dengan jelas');
+    loadData();
+  };
+
+  const pendingKycCount = kycList.filter((k) => k.status === 'pending').length;
+
+  const filteredKycList = kycList.filter((k) => {
+    const matchesStatus = kycStatusFilter === 'all' || k.status === kycStatusFilter;
+    const searchLower = kycSearch.trim().toLowerCase();
+    const matchesSearch = !searchLower ||
+      k.userName.toLowerCase().includes(searchLower) ||
+      k.userEmail.toLowerCase().includes(searchLower) ||
+      k.nik.includes(searchLower) ||
+      k.id.toLowerCase().includes(searchLower);
+    return matchesStatus && matchesSearch;
+  });
+
   // Filtered transactions for Withdrawals tab
   const withdrawalList = transactions.filter((t) => {
     const isWd = t.category === 'tarik' || t.category === 'withdraw' || (t.title && t.title.toLowerCase().includes('tarik'));
@@ -457,6 +508,27 @@ export const AdminScreen: React.FC<AdminScreenProps> = ({
             {pendingDeposits.length > 0 && (
               <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-bold">
                 {pendingDeposits.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => handleSelectTab('kyc')}
+            className={`px-3 py-2 rounded-xl font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              activeTab === 'kyc'
+                ? 'bg-amber-400 text-slate-950 font-bold shadow-sm'
+                : 'bg-[#1C1A16] text-[#A0988C] hover:text-[#F7F5F2]'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Verifikasi KYC</span>
+            {pendingKycCount > 0 ? (
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-bold animate-pulse">
+                {pendingKycCount}
+              </span>
+            ) : (
+              <span className="px-1.5 py-0.2 rounded-full bg-[#2A241B] text-[#A0988C] text-[10px]">
+                {kycList.length}
               </span>
             )}
           </button>

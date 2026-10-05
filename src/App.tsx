@@ -13,8 +13,8 @@ import { TransactionReceiptModal } from './components/TransactionReceiptModal';
 import { NotificationsModal } from './components/NotificationsModal';
 import { ActiveModals, ActiveModalType } from './components/ActiveModals';
 import { InstallPromptBanner } from './components/InstallPromptBanner';
-import { INITIAL_USER, INITIAL_TRANSACTIONS } from './data/mockData';
-import { ScreenTab, TradeType, WalletActionType, Transaction, UserAccount } from './types';
+import { INITIAL_USER, INITIAL_TRANSACTIONS, formatIDR } from './data/mockData';
+import { ScreenTab, TradeType, WalletActionType, Transaction, UserAccount, EmiratesPackage } from './types';
 import { CheckCircle2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -35,7 +35,8 @@ import {
 } from './services/databaseService';
 import { 
   saveRegisteredAccountRecord, 
-  findRegisteredAccount 
+  findRegisteredAccount,
+  getRegisteredAccounts 
 } from './services/authStorage';
 import { 
   isUserAdmin, 
@@ -507,6 +508,95 @@ export default function App() {
     showToast('Pengaturan akun berhasil disimpan.');
   };
 
+  const handleActivatePackage = async (pkg: EmiratesPackage) => {
+    if (user.balanceIdr < pkg.priceIdr) {
+      showToast(`Saldo kas Anda (${formatIDR(user.balanceIdr)}) belum mencukupi untuk ${pkg.name}. Silakan deposit terlebih dahulu.`);
+      setActiveModal(null);
+      handleStartWallet('deposit');
+      return;
+    }
+
+    const newBalance = user.balanceIdr - pkg.priceIdr + pkg.bonusAmountIdr;
+    const newGold = Number((user.goldHoldingsGram + pkg.goldGrams).toFixed(4));
+
+    const packageTx: Transaction = {
+      id: `PKG-${Date.now()}`,
+      category: 'beli',
+      title: `Investasi ${pkg.name} (${pkg.goldBrand} ${pkg.goldGrams}g)`,
+      amountIdr: pkg.priceIdr,
+      goldGrams: pkg.goldGrams,
+      date: 'Hari ini, Baru saja',
+      timestamp: Date.now(),
+      status: 'Approved',
+      paymentMethod: 'Saldo Kas Platform',
+      taxOrFee: 0,
+      notes: `Aktivasi ${pkg.name}: Emas fisik ${pkg.goldGrams}g Emirates Gold 24K + Bonus Cashback ${pkg.bonusPercent}% (${formatIDR(pkg.bonusAmountIdr)})`
+    };
+
+    const bonusTx: Transaction = {
+      id: `BONUS-PKG-${Date.now() + 1}`,
+      category: 'deposit',
+      title: `Bonus Cashback ${pkg.bonusPercent}% (${pkg.name})`,
+      amountIdr: pkg.bonusAmountIdr,
+      date: 'Hari ini, Baru saja',
+      timestamp: Date.now() + 1,
+      status: 'Approved',
+      paymentMethod: 'Emirates Gold Reward Cashback',
+      taxOrFee: 0,
+      notes: `Bonus tunai instan ${pkg.bonusPercent}% dari aktivasi paket investasi ${pkg.name}`
+    };
+
+    const newPackageRecord = {
+      id: `upkg-${Date.now()}`,
+      packageId: pkg.id,
+      packageName: pkg.name,
+      priceIdr: pkg.priceIdr,
+      goldGrams: pkg.goldGrams,
+      bonusPercent: pkg.bonusPercent,
+      bonusAmountIdr: pkg.bonusAmountIdr,
+      purchasedAt: Date.now(),
+      status: 'active' as const
+    };
+
+    const updatedUser: UserAccount = {
+      ...user,
+      balanceIdr: newBalance,
+      goldHoldingsGram: newGold,
+      activePackages: [...(user.activePackages || []), newPackageRecord]
+    };
+
+    setUser(updatedUser);
+    setTransactions((prev) => [bonusTx, packageTx, ...prev]);
+
+    // Simpan ke vault akun terdaftar
+    const cleanEmail = extractCleanEmail(user.email);
+    if (cleanEmail) {
+      const userAcc = findRegisteredAccount(cleanEmail);
+      if (userAcc) {
+        saveRegisteredAccountRecord({
+          ...userAcc,
+          userProfile: updatedUser,
+          transactions: [bonusTx, packageTx, ...(userAcc.transactions || [])],
+          updatedAt: Date.now()
+        });
+      }
+    }
+
+    const effectiveUid = firebaseUser?.uid || (cleanEmail ? encodeChatId(cleanEmail) : 'guest');
+    try {
+      await saveUserProfile(effectiveUid, updatedUser);
+      await saveTransaction(effectiveUid, packageTx, user.email, user.name);
+      await saveTransaction(effectiveUid, bonusTx, user.email, user.name);
+      recordPlatformTransaction(packageTx, user.email);
+      recordPlatformTransaction(bonusTx, user.email);
+    } catch (err) {
+      console.warn('Sync package purchase warning:', err);
+    }
+
+    setActiveModal(null);
+    showToast(`Sukses! ${pkg.name} aktif. Emas fisik ${pkg.goldGrams}g Emirates Gold & Bonus ${formatIDR(pkg.bonusAmountIdr)} telah masuk ke portofolio Anda!`);
+  };
+
   const handleAuthSuccess = async (
     email: string, 
     name: string, 
@@ -557,12 +647,42 @@ export default function App() {
           notes: `Hadiah bonus ekstra referral kode ${referralCodeUsed.trim().toUpperCase()}`
         };
         newTransactionsList.push(refTx);
+
+        // Tambahkan hitungan 1 teman ke pengundang secara real-time
+        try {
+          const refCode = referralCodeUsed.trim().toUpperCase();
+          const allAccounts = getRegisteredAccounts();
+          for (const [accEmail, accRecord] of Object.entries(allAccounts)) {
+            if (accRecord.userProfile.referralCode?.toUpperCase() === refCode) {
+              const nextCount = (accRecord.userProfile.referralCount || 0) + 1;
+              saveRegisteredAccountRecord({
+                ...accRecord,
+                userProfile: {
+                  ...accRecord.userProfile,
+                  referralCount: nextCount
+                }
+              });
+              const referrerUid = encodeChatId(accEmail);
+              saveUserProfile(referrerUid, {
+                ...accRecord.userProfile,
+                referralCount: nextCount
+              }).catch(() => {});
+              break;
+            }
+          }
+        } catch (err) {
+          console.warn('Increment referrer target count error:', err);
+        }
       }
     }
 
     const currentFbUser = auth.currentUser;
 
     if (isNewRegistration) {
+      // Periksa apakah ada data pendaftaran KYC yang baru saja diinput
+      const existingVault = findRegisteredAccount(email);
+      const vaultProfile = existingVault?.userProfile;
+
       const newUserProfile: UserAccount = {
         name,
         email,
@@ -573,8 +693,12 @@ export default function App() {
         referralCode: `IG${Math.floor(100000 + Math.random() * 900000)}`,
         referralCount: 0,
         referralBonus: 0,
-        isKycVerified: true,
-        kycLevel: 'Level 1 (Terverifikasi Dasar)',
+        referredBy: referralCodeUsed?.trim().toUpperCase(),
+        // Status KYC pendaftaran: pending verifikasi admin
+        isKycVerified: vaultProfile ? vaultProfile.isKycVerified : false,
+        kycStatus: vaultProfile?.kycStatus || 'pending',
+        kycLevel: vaultProfile?.kycLevel || 'Menunggu Verifikasi Admin',
+        kycData: vaultProfile?.kycData,
         biometricEnabled: true,
         signupBonusReceived: true,
         pinSet: true,
@@ -775,6 +899,7 @@ export default function App() {
                 onCompleteTransaction={handleCompleteTransaction}
                 onBack={() => setActiveActionFlow(null)}
                 onShowToast={showToast}
+                onUpdateUser={handleUpdateUser}
               />
             </motion.div>
           )}
@@ -804,6 +929,7 @@ export default function App() {
                 onOpenProofTransfer={() => setActiveModal('proof_transfer')}
                 onOpenPromoKit={() => setActiveModal('promo_kit')}
                 onOpenTransferEmas={() => setActiveModal('transfer_emas')}
+                onOpenEmiratesPackages={() => setActiveModal('emirates_packages')}
                 onOpenHelp={() => setActiveModal('help')}
                 onOpenNotifications={() => setShowNotifications(true)}
               />
@@ -907,7 +1033,7 @@ export default function App() {
         }}
       />
 
-      {/* Active Feature Modals (Articles, Help, Pin, Certificate, Bank, KYC, Proof Transfer, Promo Kit, Transfer Emas) */}
+      {/* Active Feature Modals (Articles, Help, Pin, Certificate, Bank, KYC, Proof Transfer, Promo Kit, Transfer Emas, Emirates Packages) */}
       <ActiveModals
         activeModal={activeModal}
         certModalMode={certModalMode}
@@ -924,6 +1050,11 @@ export default function App() {
           saveTransaction(effectiveUid, newTx, user.email, user.name);
         }}
         onStartTrade={handleStartTrade}
+        onActivatePackage={handleActivatePackage}
+        onGoToDeposit={() => {
+          setActiveModal(null);
+          handleStartWallet('deposit');
+        }}
       />
 
       {/* Transaction Receipt Modal */}

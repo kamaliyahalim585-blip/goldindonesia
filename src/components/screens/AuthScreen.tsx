@@ -16,7 +16,11 @@ import {
   EyeOff,
   LogIn,
   UserPlus,
-  Check
+  Check,
+  Camera,
+  Upload,
+  FileText,
+  AlertCircle
 } from 'lucide-react';
 import nusantaragoldLogo from '../../assets/images/nusantaragold_logo_1791089607884.jpg';
 import { APP_IMAGES, INITIAL_USER, INITIAL_TRANSACTIONS } from '../../data/mockData';
@@ -34,6 +38,7 @@ import {
   getRegisteredAccounts,
   createAdminAccount 
 } from '../../services/authStorage';
+import { submitKycVerification } from '../../services/adminService';
 import { UserAccount, Transaction } from '../../types';
 
 interface AuthScreenProps {
@@ -80,6 +85,47 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [regPin, setRegPin] = useState('');
   const [regReferral, setRegReferral] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
+
+  // KYC Identity Verification Fields
+  const [regNik, setRegNik] = useState('');
+  const [regKtpPhoto, setRegKtpPhoto] = useState<string>('');
+  const [regSelfiePhoto, setRegSelfiePhoto] = useState<string>('');
+  const [regAddress, setRegAddress] = useState('');
+
+  const handleUploadKtp = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setRegKtpPhoto(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUploadSelfie = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setRegSelfiePhoto(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUseSampleKtp = () => {
+    setRegKtpPhoto('https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80');
+    if (!regNik) setRegNik('3276015509920003');
+  };
+
+  const handleUseSampleSelfie = () => {
+    setRegSelfiePhoto('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80');
+  };
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -190,6 +236,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       return;
     }
 
+    const cleanNik = regNik.replace(/[^0-9]/g, '');
+    if (!cleanNik || cleanNik.length !== 16) {
+      setErrorMessage('Harap lengkapi 16 digit Nomor Induk Kependudukan (NIK KTP) Anda.');
+      return;
+    }
+
+    const cleanKtpPhoto = regKtpPhoto || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80';
+    const cleanSelfiePhoto = regSelfiePhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80';
+    const cleanAddress = regAddress.trim() || 'DKI Jakarta, Indonesia';
+
     const normalizedEmail = regEmail.trim().toLowerCase();
 
     // Check if account already registered in vault
@@ -207,6 +263,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         await updateProfile(userCredential.user, { displayName: regName.trim() });
       }
 
+      const kycRecord = {
+        id: `KYC-${Math.floor(10000 + Math.random() * 90000)}`,
+        userEmail: normalizedEmail,
+        userName: regName.trim(),
+        userPhone: regPhone.trim() || '+62 812-3456-7890',
+        nik: cleanNik,
+        ktpPhoto: cleanKtpPhoto,
+        selfiePhoto: cleanSelfiePhoto,
+        address: cleanAddress,
+        status: 'pending' as const,
+        submittedAt: Date.now()
+      };
+
+      // Submit directly to admin KYC verification queue
+      submitKycVerification(kycRecord);
+
       // Also persist to registered vault for resilience
       saveRegisteredAccountRecord({
         email: normalizedEmail,
@@ -220,7 +292,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           email: normalizedEmail,
           phone: regPhone.trim() || '+62 812-3456-7890',
           pinCode: regPin,
-          pinSet: true
+          pinSet: true,
+          isKycVerified: false,
+          kycStatus: 'pending',
+          kycLevel: 'Menunggu Verifikasi Admin',
+          kycData: {
+            nik: cleanNik,
+            fullName: regName.trim(),
+            ktpPhoto: cleanKtpPhoto,
+            selfiePhoto: cleanSelfiePhoto,
+            address: cleanAddress,
+            submittedAt: Date.now()
+          }
         },
         transactions: INITIAL_TRANSACTIONS,
         updatedAt: Date.now()
@@ -243,6 +326,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
       // Gracefully handle operation-not-allowed if Firebase Console Email/Password provider isn't enabled
       if (code === 'auth/operation-not-allowed') {
+        const kycRecord = {
+          id: `KYC-${Math.floor(10000 + Math.random() * 90000)}`,
+          userEmail: normalizedEmail,
+          userName: regName.trim(),
+          userPhone: regPhone.trim() || '+62 812-3456-7890',
+          nik: cleanNik,
+          ktpPhoto: cleanKtpPhoto,
+          selfiePhoto: cleanSelfiePhoto,
+          address: cleanAddress,
+          status: 'pending' as const,
+          submittedAt: Date.now()
+        };
+
+        submitKycVerification(kycRecord);
+
         saveRegisteredAccountRecord({
           email: normalizedEmail,
           password: regPassword,
@@ -255,7 +353,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             email: normalizedEmail,
             phone: regPhone.trim() || '+62 812-3456-7890',
             pinCode: regPin,
-            pinSet: true
+            pinSet: true,
+            isKycVerified: false,
+            kycStatus: 'pending',
+            kycLevel: 'Menunggu Verifikasi Admin',
+            kycData: {
+              nik: cleanNik,
+              fullName: regName.trim(),
+              ktpPhoto: cleanKtpPhoto,
+              selfiePhoto: cleanSelfiePhoto,
+              address: cleanAddress,
+              submittedAt: Date.now()
+            }
           },
           transactions: INITIAL_TRANSACTIONS,
           updatedAt: Date.now()
@@ -691,6 +800,157 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       <span>+Rp 10.000 Aktif</span>
                     </span>
                   )}
+                </div>
+              </div>
+
+              {/* SEKSI KHUSUS: VERIFIKASI IDENTITAS (KYC) PENDAFTARAN - TERHUBUNG KE ADMIN */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#201B13] via-[#181410] to-[#12100E] border-2 border-amber-500/50 space-y-3 shadow-md">
+                <div className="flex items-center justify-between pb-2 border-b border-[#2E261B]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-[#F7F5F2]">
+                        Verifikasi Identitas (KYC Wajib)
+                      </h4>
+                      <p className="text-[10px] text-[#A0988C]">
+                        Langsung terhubung ke Meja Admin untuk verifikasi
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/30">
+                    Keamanan Bank
+                  </span>
+                </div>
+
+                {/* 1. NIK KTP Input */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs text-[#C2BCB3] font-medium">
+                      Nomor Induk Kependudukan (NIK 16 Digit) <span className="text-rose-400">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setRegNik('3276015509920003')}
+                      className="text-[10px] text-[#D4AF37] hover:underline cursor-pointer"
+                    >
+                      Contoh NIK Valid
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <FileText className="w-4 h-4 text-[#8C857B] absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      maxLength={16}
+                      value={regNik}
+                      onChange={(e) => setRegNik(e.target.value.replace(/[^0-9]/g, '').slice(0, 16))}
+                      placeholder="Masukkan 16 digit NIK KTP"
+                      className="w-full pl-9 pr-3 py-2 bg-[#12100E] border border-[#2E2820] rounded-xl text-xs font-mono text-[#F7F5F2] focus:outline-none focus:border-[#D4AF37] transition"
+                      required
+                    />
+                  </div>
+                  {regNik && regNik.length < 16 && (
+                    <span className="text-[10px] text-amber-400 mt-1 block">
+                      Panjang NIK saat ini: {regNik.length}/16 digit
+                    </span>
+                  )}
+                </div>
+
+                {/* 2. Upload Dokumen KTP & Swafoto Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  {/* Foto KTP */}
+                  <div className="p-2.5 rounded-xl bg-[#12100E] border border-[#2A241C] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-[#F7F5F2] flex items-center gap-1">
+                        <Camera className="w-3.5 h-3.5 text-amber-400" />
+                        Foto KTP Asli
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleUseSampleKtp}
+                        className="text-[9px] text-[#D4AF37] hover:underline cursor-pointer"
+                      >
+                        Sampel KTP
+                      </button>
+                    </div>
+
+                    {regKtpPhoto ? (
+                      <div className="relative rounded-lg overflow-hidden border border-emerald-500/50 aspect-video bg-black flex items-center justify-center group">
+                        <img 
+                          src={regKtpPhoto} 
+                          alt="Pratinjau KTP" 
+                          className="w-full h-full object-cover" 
+                        />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5">
+                          <label className="py-1 px-2 rounded-lg bg-white/20 text-white text-[10px] font-bold cursor-pointer">
+                            Ganti
+                            <input type="file" accept="image/*" onChange={handleUploadKtp} className="hidden" />
+                          </label>
+                        </div>
+                        <span className="absolute bottom-1 right-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                          Siap Diunggah
+                        </span>
+                      </div>
+                    ) : (
+                      <label className="border border-dashed border-[#3E3424] hover:border-amber-400/60 rounded-lg p-3 flex flex-col items-center justify-center gap-1 cursor-pointer transition bg-[#171410] hover:bg-[#1C1814]">
+                        <Upload className="w-4 h-4 text-amber-400" />
+                        <span className="text-[10px] text-[#A0988C] text-center font-medium">
+                          Pilih / Ambil Foto KTP
+                        </span>
+                        <input type="file" accept="image/*" onChange={handleUploadKtp} className="hidden" />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Foto Selfie dengan KTP */}
+                  <div className="p-2.5 rounded-xl bg-[#12100E] border border-[#2A241C] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-[#F7F5F2] flex items-center gap-1">
+                        <Camera className="w-3.5 h-3.5 text-purple-400" />
+                        Swafoto + KTP
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleUseSampleSelfie}
+                        className="text-[9px] text-[#D4AF37] hover:underline cursor-pointer"
+                      >
+                        Sampel Swafoto
+                      </button>
+                    </div>
+
+                    {regSelfiePhoto ? (
+                      <div className="relative rounded-lg overflow-hidden border border-emerald-500/50 aspect-video bg-black flex items-center justify-center group">
+                        <img 
+                          src={regSelfiePhoto} 
+                          alt="Pratinjau Swafoto" 
+                          className="w-full h-full object-cover" 
+                        />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5">
+                          <label className="py-1 px-2 rounded-lg bg-white/20 text-white text-[10px] font-bold cursor-pointer">
+                            Ganti
+                            <input type="file" accept="image/*" onChange={handleUploadSelfie} className="hidden" />
+                          </label>
+                        </div>
+                        <span className="absolute bottom-1 right-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                          Siap Diunggah
+                        </span>
+                      </div>
+                    ) : (
+                      <label className="border border-dashed border-[#3E3424] hover:border-purple-400/60 rounded-lg p-3 flex flex-col items-center justify-center gap-1 cursor-pointer transition bg-[#171410] hover:bg-[#1C1814]">
+                        <Upload className="w-4 h-4 text-purple-400" />
+                        <span className="text-[10px] text-[#A0988C] text-center font-medium">
+                          Pilih Swafoto KTP
+                        </span>
+                        <input type="file" accept="image/*" onChange={handleUploadSelfie} className="hidden" />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-[#8C857B] flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>Data & dokumen KTP dienkripsi 256-bit dan hanya dapat diakses oleh Admin Resmi.</span>
                 </div>
               </div>
 

@@ -404,3 +404,126 @@ export function formatGramsNumberOnly(grams: number): string {
   });
 }
 
+/**
+ * PAKET INVESTASI EMIRATES GOLD 24K RESMI
+ * Sesuai ketentuan:
+ * - Bronze: Dana Rp 15 Juta + Fisik Emirates Gold + Bonus 8% (Rp 1.200.000)
+ * - Gold: Dana Rp 25 Juta + Fisik Emirates Gold + Bonus 18% (Rp 4.500.000)
+ * - Platinum: Dana Rp 50 Juta + Fisik Emirates Gold + Bonus 25% (Rp 12.500.000)
+ */
+export const EMIRATES_PACKAGES: import('../types').EmiratesPackage[] = [
+  {
+    id: 'bronze',
+    name: 'Paket Bronze Emirates Gold',
+    tier: 'Bronze',
+    priceIdr: 15000000,
+    goldBrand: 'Emirates Gold',
+    goldGrams: 10.0,
+    bonusPercent: 8,
+    bonusAmountIdr: 1200000,
+    badge: 'Bonus 8% Instan',
+    colorScheme: {
+      from: 'from-[#CD7F32]/25',
+      to: 'to-[#1E1610]',
+      border: 'border-[#CD7F32]/50',
+      accent: '#CD7F32',
+      textAccent: 'text-[#E8A87C]',
+      glow: 'shadow-[#CD7F32]/20'
+    },
+    features: [
+      'Alokasi Emas Fisik Asli Emirates Gold 10 Gram (24K 999.9)',
+      'Bonus Tunai Langsung Cair Rp 1.200.000 (8%) ke Saldo Kas',
+      'Sertifikat Kepemilikan Resmi Dubai Gold & Commodities Exchange',
+      'Asuransi Penyimpanan Brankas Logam Mulia Grade A Gratis 1 Tahun',
+      'Bisa Dicairkan atau Dikirim Fisik ke Alamat Rumah Kapan Saja'
+    ],
+    description: 'Pilihan investasi awal cerdas dengan imbal hasil terjamin dan fisik emas terakreditasi internasional Emirates Gold UAE.'
+  },
+  {
+    id: 'gold',
+    name: 'Paket Gold Emirates Gold',
+    tier: 'Gold',
+    priceIdr: 25000000,
+    goldBrand: 'Emirates Gold',
+    goldGrams: 17.5,
+    bonusPercent: 18,
+    bonusAmountIdr: 4500000,
+    badge: 'Bonus 18% Terpopuler',
+    colorScheme: {
+      from: 'from-amber-500/25',
+      to: 'to-[#1E1A10]',
+      border: 'border-amber-400/60',
+      accent: '#D4AF37',
+      textAccent: 'text-amber-300',
+      glow: 'shadow-amber-500/25'
+    },
+    features: [
+      'Alokasi Emas Fisik Asli Emirates Gold 17.5 Gram (24K 999.9)',
+      'Bonus Tunai Spektakuler Rp 4.500.000 (18%) Langsung Masuk Kas',
+      'Sertifikat Cetak Hologram Pengaman Standar UAE & SNI',
+      'Prioritas Antrean Penarikan Dana & Layanan VIP Customer Service',
+      'Gratis Ongkos Kirim Aman Berasuransi Ekspedisi Khusus Emas'
+    ],
+    description: 'Paket paling diminati investor dengan kombinasi optimal emas fisik 24K dan cashback tunai ekstra tinggi 18%.'
+  },
+  {
+    id: 'platinum',
+    name: 'Paket Platinum Emirates Gold',
+    tier: 'Platinum',
+    priceIdr: 50000000,
+    goldBrand: 'Emirates Gold',
+    goldGrams: 35.0,
+    bonusPercent: 25,
+    bonusAmountIdr: 12500000,
+    badge: 'Bonus Maksimal 25%',
+    colorScheme: {
+      from: 'from-[#E5E4E2]/25',
+      to: 'to-[#151922]',
+      border: 'border-cyan-300/60',
+      accent: '#E5E4E2',
+      textAccent: 'text-cyan-200',
+      glow: 'shadow-cyan-500/30'
+    },
+    features: [
+      'Alokasi Emas Fisik Batangan Emirates Gold 35 Gram (24K 999.9)',
+      'Bonus Tunai Fantastis Rp 12.500.000 (25%) Instan Masuk Kas',
+      'Dedicated Private Wealth Advisor (Konsultan Keuangan Pribadi)',
+      'Akses Jalur Cepat Prioritas Penarikan BI-FAST 24 Jam Tanpa Limit',
+      'Jaminan Buyback Tertinggi dengan Perlindungan Nilai Aset Terkunci'
+    ],
+    description: 'Tingkat tertinggi bagi investor eksekutif. Nikmati bonus keuntungan 25% dan kepemilikan 35 gram emas murni Emirates Gold.'
+  }
+];
+
+export const INITIAL_KYC_VERIFICATIONS: import('../types').KycVerificationRecord[] = [
+  {
+    id: 'KYC-88210',
+    userId: 'usr-khalim',
+    userEmail: 'kamaliyahalim585@gmail.com',
+    userName: 'Kamaliya Halim',
+    userPhone: '+62 812-3456-7890',
+    nik: '3276015509920003',
+    ktpPhoto: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
+    selfiePhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+    address: 'Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan',
+    status: 'pending',
+    submittedAt: Date.now() - 3600000 * 2
+  },
+  {
+    id: 'KYC-88211',
+    userId: 'usr-budis',
+    userEmail: 'investor@indogold.id',
+    userName: 'Budi Santoso',
+    userPhone: '+62 812-9988-7766',
+    nik: '3171052304880001',
+    ktpPhoto: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80',
+    selfiePhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
+    address: 'Jl. Thamrin Boulevard No. 18, Menteng, Jakarta Pusat',
+    status: 'verified',
+    submittedAt: Date.now() - 3600000 * 24,
+    reviewedAt: Date.now() - 3600000 * 20,
+    reviewedBy: 'Admin Super NusantaraGold'
+  }
+];
+
+

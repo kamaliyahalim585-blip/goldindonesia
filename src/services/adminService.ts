@@ -1,11 +1,11 @@
-import { Transaction, UserAccount, ChatMessage, ChatSession, GoldPriceConfig } from '../types';
+import { Transaction, UserAccount, ChatMessage, ChatSession, GoldPriceConfig, KycVerificationRecord } from '../types';
 import { 
   getRegisteredAccounts, 
   saveRegisteredAccountRecord, 
   findRegisteredAccount, 
   RegisteredAccountRecord 
 } from './authStorage';
-import { BASE_BUY_PRICE, BASE_SELL_PRICE } from '../data/mockData';
+import { BASE_BUY_PRICE, BASE_SELL_PRICE, INITIAL_KYC_VERIFICATIONS } from '../data/mockData';
 import {
   subscribeToAllPlatformTransactions,
   fetchAllPlatformTransactionsFromFirestore,
@@ -23,6 +23,8 @@ import {
   subscribeToGoldPriceConfig,
   setGoldPriceConfigInFirestore,
   saveTransaction,
+  saveUserProfile,
+  encodeChatId,
   extractCleanEmail
 } from './databaseService';
 
@@ -57,6 +59,7 @@ export type { PendingAggregation };
 const ALL_TXS_STORAGE_KEY = 'indogold_platform_master_txs_v1';
 const CHAT_SESSIONS_STORAGE_KEY = 'indogold_chat_sessions_v1';
 const GOLD_PRICE_STORAGE_KEY = 'indogold_gold_price_config_v1';
+const KYC_VERIFICATIONS_STORAGE_KEY = 'indogold_kyc_verifications_v1';
 
 /**
  * Check if a user has Admin role or super-admin privileges
@@ -515,6 +518,62 @@ export async function approveDeposit(
         },
         transactions: userTxs
       });
+
+      // Bonus 3% untuk pengundang jika deposit minimal Rp 500.000
+      if (tx.amountIdr >= 500000 && userAcc.userProfile.referredBy) {
+        const refCode = userAcc.userProfile.referredBy.trim().toUpperCase();
+        const allAccounts = getRegisteredAccounts();
+        for (const [referrerEmail, referrerRecord] of Object.entries(allAccounts)) {
+          if (referrerRecord.userProfile.referralCode?.toUpperCase() === refCode) {
+            const bonus3Pct = Math.round(tx.amountIdr * 0.03);
+            const refNewBalance = referrerRecord.userProfile.balanceIdr + bonus3Pct;
+            const refTotalBonus = (referrerRecord.userProfile.referralBonus || 0) + bonus3Pct;
+
+            const referralBonusTx: Transaction = {
+              id: `REF-BONUS-${Math.floor(10000 + Math.random() * 90000)}`,
+              category: 'deposit',
+              title: `Komisi Referral 3% (Deposit ${userAcc.userProfile.name})`,
+              amountIdr: bonus3Pct,
+              date: 'Hari ini, Baru saja',
+              timestamp: Date.now(),
+              status: 'Approved',
+              paymentMethod: 'Komisi Referral 3% Platform',
+              notes: `Bonus komisi 3% dari deposit teman (${userAcc.userProfile.name}) sebesar Rp ${tx.amountIdr.toLocaleString('id-ID')}`
+            };
+
+            saveRegisteredAccountRecord({
+              ...referrerRecord,
+              userProfile: {
+                ...referrerRecord.userProfile,
+                balanceIdr: refNewBalance,
+                referralBonus: refTotalBonus
+              },
+              transactions: [referralBonusTx, ...(referrerRecord.transactions || [])],
+              updatedAt: Date.now()
+            });
+
+            // Catat di mutasi master transaksi
+            recordPlatformTransaction(referralBonusTx, referrerEmail);
+
+            // Sinkronkan ke Firestore pengundang
+            const referrerUid = encodeChatId(referrerEmail);
+            saveTransaction(referrerUid, referralBonusTx, referrerEmail, referrerRecord.userProfile.name).catch(() => {});
+            saveUserProfile(referrerUid, {
+              ...referrerRecord.userProfile,
+              balanceIdr: refNewBalance,
+              referralBonus: refTotalBonus
+            }).catch(() => {});
+
+            broadcastPlatformSync({
+              type: 'deposit_approved',
+              txId: referralBonusTx.id,
+              email: referrerEmail,
+              amount: bonus3Pct
+            });
+            break;
+          }
+        }
+      }
     }
   }
 
@@ -1032,6 +1091,162 @@ export function markChatAsReadByAdmin(userEmail: string): void {
 export function getAllUsersList(): RegisteredAccountRecord[] {
   const vault = getRegisteredAccounts();
   return Object.values(vault).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+/**
+ * KYC VERIFICATION QUEUE & MANAGEMENT FOR ADMIN
+ */
+export function getAllKycVerifications(): KycVerificationRecord[] {
+  try {
+    const raw = localStorage.getItem(KYC_VERIFICATIONS_STORAGE_KEY);
+    let list: KycVerificationRecord[] = raw ? JSON.parse(raw) : [];
+    if (list.length === 0) {
+      list = [...INITIAL_KYC_VERIFICATIONS];
+      localStorage.setItem(KYC_VERIFICATIONS_STORAGE_KEY, JSON.stringify(list));
+    }
+    return list.sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+  } catch (err) {
+    console.warn('Failed to load KYC verifications:', err);
+    return [...INITIAL_KYC_VERIFICATIONS];
+  }
+}
+
+export function saveKycVerifications(records: KycVerificationRecord[]): void {
+  try {
+    localStorage.setItem(KYC_VERIFICATIONS_STORAGE_KEY, JSON.stringify(records));
+  } catch (err) {
+    console.warn('Failed to save KYC verifications:', err);
+  }
+}
+
+export function submitKycVerification(record: KycVerificationRecord): void {
+  const list = getAllKycVerifications();
+  const existingIdx = list.findIndex((k) => k.id === record.id || k.userEmail.toLowerCase() === record.userEmail.toLowerCase());
+  if (existingIdx >= 0) {
+    list[existingIdx] = { ...list[existingIdx], ...record, submittedAt: Date.now(), status: 'pending' };
+  } else {
+    list.unshift(record);
+  }
+  saveKycVerifications(list);
+
+  // Sync to local account record if exists
+  const userAcc = findRegisteredAccount(record.userEmail);
+  if (userAcc) {
+    saveRegisteredAccountRecord({
+      ...userAcc,
+      userProfile: {
+        ...userAcc.userProfile,
+        isKycVerified: false,
+        kycStatus: 'pending',
+        kycLevel: 'Menunggu Verifikasi Admin',
+        kycData: {
+          nik: record.nik,
+          fullName: record.userName,
+          ktpPhoto: record.ktpPhoto,
+          selfiePhoto: record.selfiePhoto,
+          address: record.address,
+          submittedAt: record.submittedAt
+        }
+      }
+    });
+  }
+
+  broadcastPlatformSync({
+    type: 'kyc_submitted',
+    email: record.userEmail,
+    kycId: record.id
+  });
+}
+
+export async function approveKycVerification(
+  kycId: string, 
+  userEmail: string,
+  adminName = 'Admin Super NusantaraGold'
+): Promise<{ success: boolean; message: string }> {
+  const cleanEmail = extractCleanEmail(userEmail);
+  const list = getAllKycVerifications();
+  const item = list.find((k) => k.id === kycId || (cleanEmail && k.userEmail.toLowerCase() === cleanEmail));
+
+  if (item) {
+    item.status = 'verified';
+    item.reviewedAt = Date.now();
+    item.reviewedBy = adminName;
+    saveKycVerifications(list);
+  }
+
+  if (cleanEmail) {
+    updateUserKycStatus(cleanEmail, true, 'Level 2 (Terverifikasi KYC Resmi)');
+    const userAcc = findRegisteredAccount(cleanEmail);
+    if (userAcc) {
+      saveRegisteredAccountRecord({
+        ...userAcc,
+        userProfile: {
+          ...userAcc.userProfile,
+          isKycVerified: true,
+          kycStatus: 'verified',
+          kycLevel: 'Level 2 (Terverifikasi KYC Resmi)'
+        }
+      });
+    }
+  }
+
+  broadcastPlatformSync({
+    type: 'kyc_approved',
+    email: cleanEmail,
+    kycId
+  });
+
+  return {
+    success: true,
+    message: `KYC investor ${cleanEmail || kycId} berhasil diverifikasi & disetujui!`
+  };
+}
+
+export async function rejectKycVerification(
+  kycId: string, 
+  userEmail: string, 
+  reason: string,
+  adminName = 'Admin Super NusantaraGold'
+): Promise<{ success: boolean; message: string }> {
+  const cleanEmail = extractCleanEmail(userEmail);
+  const list = getAllKycVerifications();
+  const item = list.find((k) => k.id === kycId || (cleanEmail && k.userEmail.toLowerCase() === cleanEmail));
+
+  if (item) {
+    item.status = 'rejected';
+    item.reviewedAt = Date.now();
+    item.reviewedBy = adminName;
+    item.rejectionReason = reason;
+    saveKycVerifications(list);
+  }
+
+  if (cleanEmail) {
+    updateUserKycStatus(cleanEmail, false, 'Ditolak (Perlu Perbaikan Data)');
+    const userAcc = findRegisteredAccount(cleanEmail);
+    if (userAcc) {
+      saveRegisteredAccountRecord({
+        ...userAcc,
+        userProfile: {
+          ...userAcc.userProfile,
+          isKycVerified: false,
+          kycStatus: 'rejected',
+          kycLevel: 'Ditolak: ' + reason
+        }
+      });
+    }
+  }
+
+  broadcastPlatformSync({
+    type: 'kyc_rejected',
+    email: cleanEmail,
+    kycId,
+    reason
+  });
+
+  return {
+    success: true,
+    message: `Pengajuan KYC ${cleanEmail || kycId} ditolak. Alasan: ${reason}`
+  };
 }
 
 export function updateUserKycStatus(
