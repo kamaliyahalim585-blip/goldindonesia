@@ -49,7 +49,16 @@ export default function App() {
     const saved = localStorage.getItem('indogold_user');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            ...INITIAL_USER,
+            ...parsed,
+            name: (parsed.name && typeof parsed.name === 'string' && parsed.name.trim()) ? parsed.name.trim() : INITIAL_USER.name,
+            balanceIdr: (parsed.balanceIdr !== undefined && !isNaN(Number(parsed.balanceIdr))) ? Number(parsed.balanceIdr) : INITIAL_USER.balanceIdr,
+            goldHoldingsGram: (parsed.goldHoldingsGram !== undefined && !isNaN(Number(parsed.goldHoldingsGram))) ? Number(parsed.goldHoldingsGram) : INITIAL_USER.goldHoldingsGram,
+          };
+        }
       } catch (e) {
         console.error(e);
       }
@@ -61,7 +70,10 @@ export default function App() {
     const saved = localStorage.getItem('indogold_txs');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((t) => t && typeof t === 'object' && t.id);
+        }
       } catch (e) {
         console.error(e);
       }
@@ -163,7 +175,24 @@ export default function App() {
               if (account) {
                 // Account is confirmed in registered vault
                 setIsAuthenticated(true);
-                setUser((prev) => ({ ...prev, ...account.userProfile, ...parsed }));
+                setUser((prev) => {
+                  const safeName = (parsed.name && typeof parsed.name === 'string' && parsed.name.trim()) || account.userProfile.name || prev.name || 'Investor NusantaraGold';
+                  const safeBal = (parsed.balanceIdr !== undefined && !isNaN(Number(parsed.balanceIdr)))
+                    ? Number(parsed.balanceIdr)
+                    : (account.userProfile.balanceIdr ?? 0);
+                  const safeGold = (parsed.goldHoldingsGram !== undefined && !isNaN(Number(parsed.goldHoldingsGram)))
+                    ? Number(parsed.goldHoldingsGram)
+                    : (account.userProfile.goldHoldingsGram ?? 0);
+
+                  return {
+                    ...prev,
+                    ...account.userProfile,
+                    ...parsed,
+                    name: safeName,
+                    balanceIdr: safeBal,
+                    goldHoldingsGram: safeGold,
+                  };
+                });
                 setIsAuthChecking(false);
                 return;
               }
@@ -193,7 +222,25 @@ export default function App() {
     if (effectiveUid) {
       const unsubProfile = subscribeToUserProfile(effectiveUid, (data) => {
         if (data) {
-          setUser((prev) => ({ ...prev, ...data }));
+          setUser((prev) => {
+            const safeName = (data.name && typeof data.name === 'string' && data.name.trim()) 
+              || prev.name 
+              || 'Investor NusantaraGold';
+            const safeBal = (data.balanceIdr !== undefined && data.balanceIdr !== null && !isNaN(Number(data.balanceIdr)))
+              ? Number(data.balanceIdr)
+              : (prev.balanceIdr ?? 0);
+            const safeGold = (data.goldHoldingsGram !== undefined && data.goldHoldingsGram !== null && !isNaN(Number(data.goldHoldingsGram)))
+              ? Number(data.goldHoldingsGram)
+              : (prev.goldHoldingsGram ?? 0);
+
+            return {
+              ...prev,
+              ...data,
+              name: safeName,
+              balanceIdr: safeBal,
+              goldHoldingsGram: safeGold,
+            };
+          });
         }
       });
       unsubs.push(unsubProfile);
@@ -203,7 +250,25 @@ export default function App() {
     if (cleanEmail && effectiveUid !== encodeChatId(cleanEmail)) {
       const unsubProfileEmail = subscribeToUserProfile(encodeChatId(cleanEmail), (data) => {
         if (data) {
-          setUser((prev) => ({ ...prev, ...data }));
+          setUser((prev) => {
+            const safeName = (data.name && typeof data.name === 'string' && data.name.trim()) 
+              || prev.name 
+              || 'Investor NusantaraGold';
+            const safeBal = (data.balanceIdr !== undefined && data.balanceIdr !== null && !isNaN(Number(data.balanceIdr)))
+              ? Number(data.balanceIdr)
+              : (prev.balanceIdr ?? 0);
+            const safeGold = (data.goldHoldingsGram !== undefined && data.goldHoldingsGram !== null && !isNaN(Number(data.goldHoldingsGram)))
+              ? Number(data.goldHoldingsGram)
+              : (prev.goldHoldingsGram ?? 0);
+
+            return {
+              ...prev,
+              ...data,
+              name: safeName,
+              balanceIdr: safeBal,
+              goldHoldingsGram: safeGold,
+            };
+          });
         }
       });
       unsubs.push(unsubProfileEmail);
@@ -245,12 +310,25 @@ export default function App() {
       // 1. Sync user balance from local vault
       const vaultAcc = findRegisteredAccount(cleanEmail);
       if (vaultAcc && vaultAcc.userProfile) {
-        setUser((prev) => ({
-          ...prev,
-          balanceIdr: Number(vaultAcc.userProfile.balanceIdr !== undefined ? vaultAcc.userProfile.balanceIdr : prev.balanceIdr),
-          goldHoldingsGram: Number(vaultAcc.userProfile.goldHoldingsGram !== undefined ? vaultAcc.userProfile.goldHoldingsGram : prev.goldHoldingsGram),
-          isKycVerified: vaultAcc.userProfile.isKycVerified !== undefined ? vaultAcc.userProfile.isKycVerified : prev.isKycVerified
-        }));
+        setUser((prev) => {
+          const vProf = vaultAcc.userProfile;
+          const safeBal = (vProf.balanceIdr !== undefined && !isNaN(Number(vProf.balanceIdr)))
+            ? Number(vProf.balanceIdr)
+            : (prev.balanceIdr ?? 0);
+          const safeGold = (vProf.goldHoldingsGram !== undefined && !isNaN(Number(vProf.goldHoldingsGram)))
+            ? Number(vProf.goldHoldingsGram)
+            : (prev.goldHoldingsGram ?? 0);
+          const safeName = vProf.name || prev.name || 'Investor NusantaraGold';
+
+          return {
+            ...prev,
+            ...vProf,
+            name: safeName,
+            balanceIdr: safeBal,
+            goldHoldingsGram: safeGold,
+            isKycVerified: vProf.isKycVerified !== undefined ? vProf.isKycVerified : prev.isKycVerified
+          };
+        });
       }
 
       // 2. Sync transactions from master platform store
@@ -269,6 +347,12 @@ export default function App() {
             map.set(t.id, { ...ex, ...t });
           });
           return Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        });
+
+        setSelectedReceiptTx((prevTx) => {
+          if (!prevTx) return null;
+          const matching = userMasterTxs.find((t) => t.id === prevTx.id);
+          return matching ? { ...prevTx, ...matching } : prevTx;
         });
       }
     };

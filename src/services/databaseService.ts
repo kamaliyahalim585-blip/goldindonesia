@@ -243,17 +243,46 @@ export function subscribeToUserProfile(
     (docSnap) => {
       if (docSnap.exists()) {
         const d = docSnap.data();
-        onUpdate({
-          name: d.name,
-          email: d.email,
-          phone: d.phone,
-          balanceIdr: Number(d.balanceIdr),
-          goldHoldingsGram: Number(d.goldHoldingsGram),
-          biometricEnabled: Boolean(d.biometricEnabled),
-          dailyProfitEarnedTotal: Number(d.dailyProfitEarnedTotal || 0),
-          lastDailyProfitClaimDate: d.lastDailyProfitClaimDate,
-          referralCount: Number(d.referralCount || 0),
-        });
+        if (!d) return;
+
+        const updatePayload: Partial<UserAccount> = {};
+        if (d.name && typeof d.name === 'string' && d.name.trim()) {
+          updatePayload.name = d.name.trim();
+        }
+        if (d.email && typeof d.email === 'string' && d.email.trim()) {
+          updatePayload.email = d.email.trim();
+        }
+        if (d.phone && typeof d.phone === 'string' && d.phone.trim()) {
+          updatePayload.phone = d.phone.trim();
+        }
+        if (d.balanceIdr !== undefined && d.balanceIdr !== null && !isNaN(Number(d.balanceIdr))) {
+          updatePayload.balanceIdr = Number(d.balanceIdr);
+        }
+        if (d.goldHoldingsGram !== undefined && d.goldHoldingsGram !== null && !isNaN(Number(d.goldHoldingsGram))) {
+          updatePayload.goldHoldingsGram = Number(d.goldHoldingsGram);
+        }
+        if (d.biometricEnabled !== undefined) {
+          updatePayload.biometricEnabled = Boolean(d.biometricEnabled);
+        }
+        if (d.dailyProfitEarnedTotal !== undefined && !isNaN(Number(d.dailyProfitEarnedTotal))) {
+          updatePayload.dailyProfitEarnedTotal = Number(d.dailyProfitEarnedTotal);
+        }
+        if (d.lastDailyProfitClaimDate && typeof d.lastDailyProfitClaimDate === 'string') {
+          updatePayload.lastDailyProfitClaimDate = d.lastDailyProfitClaimDate;
+        }
+        if (d.referralCount !== undefined && !isNaN(Number(d.referralCount))) {
+          updatePayload.referralCount = Number(d.referralCount);
+        }
+        if (d.isKycVerified !== undefined) {
+          updatePayload.isKycVerified = Boolean(d.isKycVerified);
+        }
+        if (d.kycLevel && typeof d.kycLevel === 'string') {
+          updatePayload.kycLevel = d.kycLevel;
+        }
+
+        if (Object.keys(updatePayload).length > 0) {
+          onUpdate(updatePayload);
+        }
       }
     },
     (error) => {
@@ -641,10 +670,17 @@ export async function updateTransactionStatusInFirestore(
         }
 
         if (shouldUpdate) {
+          const fallbackName = userData.name || existing?.userName || existing?.senderName || 'Investor NusantaraGold';
+          const fallbackGold = (userData.goldHoldingsGram !== undefined && !isNaN(Number(userData.goldHoldingsGram)))
+            ? Number(userData.goldHoldingsGram)
+            : 0;
+
           await setDoc(uRef, {
             ...userData,
+            name: fallbackName,
             email: cleanEmail || userData.email || '',
             balanceIdr: newBal,
+            goldHoldingsGram: fallbackGold,
             updatedAt: new Date().toISOString()
           }, { merge: true });
         }

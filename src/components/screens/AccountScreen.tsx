@@ -62,8 +62,19 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
   const [biometric, setBiometric] = useState(user.biometricEnabled);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const goldValueEstimate = Math.round(user.goldHoldingsGram * BASE_BUY_PRICE);
-  const totalAssetsValue = user.balanceIdr + goldValueEstimate;
+  const safeGoldGrams = (user?.goldHoldingsGram && !isNaN(Number(user.goldHoldingsGram))) ? Number(user.goldHoldingsGram) : 0;
+  const safeBalanceIdr = (user?.balanceIdr && !isNaN(Number(user.balanceIdr))) ? Number(user.balanceIdr) : 0;
+  const goldValueEstimate = Math.round(safeGoldGrams * BASE_BUY_PRICE);
+  const totalAssetsValue = safeBalanceIdr + goldValueEstimate;
+
+  const initials = (user?.name || 'Investor')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'IN';
 
   const handleCopyReferral = () => {
     navigator.clipboard.writeText(user.referralCode);
@@ -105,7 +116,7 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
           <div className="flex items-center gap-3.5">
             <div className="relative">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#4A3C13] via-[#2B2313] to-[#0F0E0D] border-2 border-[#D4AF37] flex items-center justify-center font-serif text-2xl text-[#F3E5AB] shadow-lg shadow-black/60 shrink-0">
-                {user.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}
+                {initials}
               </div>
               <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#0F0E0D] flex items-center justify-center" title="Online & Terverifikasi">
                 <Check className="w-3 h-3 text-slate-950 stroke-[3]" />

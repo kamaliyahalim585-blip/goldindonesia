@@ -123,8 +123,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }, []);
 
   // Total wealth calculation dynamically tied to live gold market price
-  const goldValueIdr = Math.round(user.goldHoldingsGram * currentBuyPrice);
-  const totalWealthIdr = user.balanceIdr + goldValueIdr;
+  const safeGoldGrams = (user?.goldHoldingsGram !== undefined && !isNaN(Number(user.goldHoldingsGram))) ? Number(user.goldHoldingsGram) : 0;
+  const safeBalanceIdr = (user?.balanceIdr !== undefined && !isNaN(Number(user.balanceIdr))) ? Number(user.balanceIdr) : 0;
+  const goldValueIdr = Math.round(safeGoldGrams * currentBuyPrice);
+  const totalWealthIdr = safeBalanceIdr + goldValueIdr;
 
   // Filter 3 latest transactions
   const recentTransactions = transactions.slice(0, 3);
@@ -177,7 +179,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div className="flex items-baseline gap-2">
               <span className="text-xl sm:text-2xl font-serif font-bold text-[#D4AF37]">Rp</span>
               <h1 className="font-mono text-3xl sm:text-4xl tracking-tight font-extrabold text-[#F7F5F2] tabular-nums">
-                {isBalanceHidden ? '••••••••' : formatIDRNumberOnly(user.balanceIdr)}
+                {isBalanceHidden ? '••••••••' : formatIDRNumberOnly(safeBalanceIdr)}
               </h1>
             </div>
             
@@ -209,7 +211,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <div className="mt-1 flex items-baseline justify-between">
                 <div className="flex items-baseline gap-1">
                   <span className="font-mono text-sm sm:text-base font-bold text-[#D4AF37] tabular-nums">
-                    {isBalanceHidden ? '••••' : formatGramsNumberOnly(user.goldHoldingsGram)}
+                    {isBalanceHidden ? '••••' : formatGramsNumberOnly(safeGoldGrams)}
                   </span>
                   <span className="text-[10px] text-[#8C857B]">gr</span>
                 </div>

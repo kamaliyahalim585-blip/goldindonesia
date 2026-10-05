@@ -50,8 +50,10 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
 
   // Total valuation
-  const goldValueIdr = Math.round(user.goldHoldingsGram * currentBuyPrice);
-  const totalWealthIdr = user.balanceIdr + goldValueIdr;
+  const safeGoldGrams = (user?.goldHoldingsGram !== undefined && !isNaN(Number(user.goldHoldingsGram))) ? Number(user.goldHoldingsGram) : 0;
+  const safeBalanceIdr = (user?.balanceIdr !== undefined && !isNaN(Number(user.balanceIdr))) ? Number(user.balanceIdr) : 0;
+  const goldValueIdr = Math.round(safeGoldGrams * currentBuyPrice);
+  const totalWealthIdr = safeBalanceIdr + goldValueIdr;
 
   // 3% Daily profit math
   // 3% daily yield calculated on the gold value (minimum basis Rp 1.000.000 if gold is small)
@@ -126,7 +128,7 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
             <div className="flex flex-wrap items-baseline gap-2 sm:gap-3 mt-1">
               <div className="flex items-baseline gap-1">
                 <h1 className="font-mono text-3xl sm:text-4xl font-bold tracking-tight text-amber-400 tabular-nums">
-                  {formatGramsNumberOnly(user.goldHoldingsGram)}
+                  {formatGramsNumberOnly(safeGoldGrams)}
                 </h1>
                 <span className="text-base sm:text-lg font-bold text-[#A0988C]">gram</span>
               </div>
@@ -143,7 +145,7 @@ export const PortfolioScreen: React.FC<PortfolioScreenProps> = ({
               <div className="flex items-baseline gap-1 mt-1">
                 <span className="text-[10px] font-semibold text-[#D4AF37]">Rp</span>
                 <span className="font-mono text-sm font-bold text-[#F7F5F2] tabular-nums">
-                  {formatIDRNumberOnly(user.balanceIdr)}
+                  {formatIDRNumberOnly(safeBalanceIdr)}
                 </span>
               </div>
             </div>

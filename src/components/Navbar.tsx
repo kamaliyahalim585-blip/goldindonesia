@@ -63,7 +63,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-600/10 border-2 border-amber-400/60 flex items-center justify-center text-amber-300 hover:border-amber-300 transition text-xs font-serif font-bold shadow-sm cursor-pointer"
             title="Profil & Akun Pengguna"
           >
-            {user.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+            {(user?.name || 'Investor')
+              .trim()
+              .split(/\s+/)
+              .filter(Boolean)
+              .map(n => n[0])
+              .slice(0, 2)
+              .join('')
+              .toUpperCase() || 'IN'}
           </button>
         </div>
       </div>

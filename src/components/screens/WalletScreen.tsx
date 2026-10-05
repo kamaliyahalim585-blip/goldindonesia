@@ -242,7 +242,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
           <div className="flex items-baseline gap-1 mt-0.5">
             <span className="text-sm font-bold text-[#D4AF37]">Rp</span>
             <span className="font-mono text-2xl font-bold text-[#F7F5F2] tabular-nums">
-              {formatIDRNumberOnly(user.balanceIdr)}
+              {formatIDRNumberOnly(user?.balanceIdr || 0)}
             </span>
           </div>
         </div>

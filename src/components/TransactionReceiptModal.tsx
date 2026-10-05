@@ -30,7 +30,14 @@ export const TransactionReceiptModal: React.FC<TransactionReceiptModalProps> = (
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const statusConfig = {
+  const statusLower = (transaction.status || '').toLowerCase();
+  const safeStatus = (statusLower.includes('approve') || statusLower.includes('sukses') || statusLower.includes('berhasil'))
+    ? 'Approved'
+    : (statusLower.includes('reject') || statusLower.includes('tolak') || statusLower.includes('batal') || statusLower.includes('gagal'))
+    ? 'Rejected'
+    : 'Pending';
+
+  const statusMap = {
     Approved: {
       label: 'Disetujui (Approved)',
       bg: 'bg-[#2E5C3E]/30',
@@ -52,8 +59,9 @@ export const TransactionReceiptModal: React.FC<TransactionReceiptModalProps> = (
       border: 'border-[#7A2A2A]',
       icon: AlertCircle
     }
-  }[transaction.status];
+  };
 
+  const statusConfig = statusMap[safeStatus] || statusMap.Pending;
   const StatusIcon = statusConfig.icon;
 
   return (
