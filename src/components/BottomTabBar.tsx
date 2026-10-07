@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, PieChart, Clock, User } from 'lucide-react';
+import { Home, Award, Clock, User } from 'lucide-react';
 import { ScreenTab } from '../types';
 
 interface BottomTabBarProps {
@@ -30,12 +30,12 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ currentTab, onSelect
     },
     { 
       id: 'portofolio', 
-      label: 'Portofolio', 
-      icon: PieChart, 
-      activeColor: 'text-emerald-400', 
-      activeBg: 'bg-emerald-400/15', 
-      activeBorder: 'border-emerald-400/40',
-      dotColor: 'bg-emerald-400' 
+      label: 'Paket Spesial', 
+      icon: Award, 
+      activeColor: 'text-[#D4AF37]', 
+      activeBg: 'bg-[#D4AF37]/15', 
+      activeBorder: 'border-[#D4AF37]/40',
+      dotColor: 'bg-[#D4AF37]' 
     },
     { 
       id: 'riwayat', 

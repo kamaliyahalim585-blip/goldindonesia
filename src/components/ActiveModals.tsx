@@ -50,6 +50,7 @@ interface ActiveModalsProps {
   onClose: () => void;
   user: UserAccount;
   certModalMode?: 'sertifikat' | 'cetak_fisik';
+  initialPackageTier?: 'bronze' | 'gold' | 'platinum';
   onUpdateUser: (updated: Partial<UserAccount>) => void;
   onShowToast: (msg: string) => void;
   onSubmitProof?: (newTx: Transaction, amount: number) => void;
@@ -64,6 +65,7 @@ export const ActiveModals: React.FC<ActiveModalsProps> = ({
   onClose,
   user,
   certModalMode = 'sertifikat',
+  initialPackageTier = 'gold',
   onUpdateUser,
   onShowToast,
   onSubmitProof,
@@ -79,6 +81,7 @@ export const ActiveModals: React.FC<ActiveModalsProps> = ({
     return (
       <EmiratesPackagesModal
         user={user}
+        initialTier={initialPackageTier}
         onClose={onClose}
         onActivatePackage={(pkg) => {
           if (onActivatePackage) {

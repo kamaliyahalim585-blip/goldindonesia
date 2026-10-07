@@ -50,7 +50,7 @@ interface HomeScreenProps {
   onOpenProofTransfer?: () => void;
   onOpenPromoKit?: () => void;
   onOpenTransferEmas?: () => void;
-  onOpenEmiratesPackages?: () => void;
+  onOpenEmiratesPackages?: (tier?: 'bronze' | 'gold' | 'platinum') => void;
   onOpenHelp?: () => void;
   onOpenNotifications?: () => void;
 }
@@ -430,8 +430,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {/* Bronze Card */}
             <div 
-              onClick={onOpenEmiratesPackages}
-              className="p-3 rounded-2xl bg-[#141210] border border-[#CD7F32]/50 hover:border-[#CD7F32] transition-all cursor-pointer group shadow-sm flex flex-col justify-between"
+              onClick={() => onOpenEmiratesPackages && onOpenEmiratesPackages('bronze')}
+              className="p-3.5 rounded-2xl bg-[#141210] border border-[#CD7F32]/50 hover:border-[#CD7F32] transition-all cursor-pointer group shadow-sm flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between">
@@ -453,12 +453,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <span className="text-[#8C857B]">Cashback:</span>
                 <span className="text-emerald-400 font-bold font-mono">+Rp 1.200.000</span>
               </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenEmiratesPackages && onOpenEmiratesPackages('bronze');
+                }}
+                className="mt-2.5 w-full py-1.5 rounded-lg bg-[#241E18] hover:bg-[#342B22] text-[#E8A87C] border border-[#CD7F32]/40 text-[11px] font-bold transition flex items-center justify-center gap-1"
+              >
+                <span>Ambil Paket Bronze</span>
+              </button>
             </div>
 
             {/* Gold Card */}
             <div 
-              onClick={onOpenEmiratesPackages}
-              className="p-3 rounded-2xl bg-[#17140F] border-2 border-amber-400/70 hover:border-amber-400 transition-all cursor-pointer group shadow-md shadow-amber-500/10 flex flex-col justify-between relative"
+              onClick={() => onOpenEmiratesPackages && onOpenEmiratesPackages('gold')}
+              className="p-3.5 rounded-2xl bg-[#17140F] border-2 border-amber-400/80 hover:border-amber-300 transition-all cursor-pointer group shadow-md shadow-amber-500/15 flex flex-col justify-between relative"
             >
               <span className="absolute -top-2.5 right-3 text-[9px] font-bold px-2 py-0.2 rounded-full bg-gradient-to-r from-amber-400 to-[#D4AF37] text-slate-950 shadow">
                 Paling Favorit
@@ -483,12 +493,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <span className="text-[#8C857B]">Cashback:</span>
                 <span className="text-emerald-400 font-bold font-mono">+Rp 4.500.000</span>
               </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenEmiratesPackages && onOpenEmiratesPackages('gold');
+                }}
+                className="mt-2.5 w-full py-2 rounded-xl bg-gradient-to-r from-amber-400 to-[#D4AF37] hover:brightness-110 text-slate-950 text-xs font-extrabold shadow-md shadow-amber-500/25 transition flex items-center justify-center gap-1.5 active:scale-95"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Ambil Paket Gold</span>
+              </button>
             </div>
 
             {/* Platinum Card */}
             <div 
-              onClick={onOpenEmiratesPackages}
-              className="p-3 rounded-2xl bg-[#141210] border border-cyan-400/50 hover:border-cyan-300 transition-all cursor-pointer group shadow-sm flex flex-col justify-between"
+              onClick={() => onOpenEmiratesPackages && onOpenEmiratesPackages('platinum')}
+              className="p-3.5 rounded-2xl bg-[#141210] border border-cyan-400/50 hover:border-cyan-300 transition-all cursor-pointer group shadow-sm flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between">
@@ -510,6 +531,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <span className="text-[#8C857B]">Cashback:</span>
                 <span className="text-emerald-400 font-bold font-mono">+Rp 12.500.000</span>
               </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenEmiratesPackages && onOpenEmiratesPackages('platinum');
+                }}
+                className="mt-2.5 w-full py-1.5 rounded-lg bg-[#182226] hover:bg-[#202E34] text-cyan-300 border border-cyan-400/40 text-[11px] font-bold transition flex items-center justify-center gap-1"
+              >
+                <span>Ambil Paket Platinum</span>
+              </button>
             </div>
           </div>
 

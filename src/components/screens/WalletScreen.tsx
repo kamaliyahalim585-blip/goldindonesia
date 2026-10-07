@@ -81,27 +81,19 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
   const remainingReferralsNeeded = Math.max(0, 10 - currentReferrals);
   const referralProgressPct = Math.min(100, Math.round((currentReferrals / 10) * 100));
 
-  const handleSimulateAddReferral = () => {
-    const nextCount = currentReferrals + 1;
-    if (onUpdateUser) {
-      onUpdateUser({ referralCount: nextCount });
-    }
-    if (onShowToast) {
-      onShowToast(`Simulasi Demo: +1 Teman baru terdaftar! Total undangan: ${nextCount}/10.`);
-    }
-  };
+  const referralLink = `https://nusantaragold.site/?ref=${user.referralCode || 'NGOLD2026'}`;
 
   const handleCopyReferral = () => {
-    navigator.clipboard.writeText(user.referralCode || 'NGOLD2026');
+    navigator.clipboard.writeText(referralLink);
     setCopiedReferral(true);
     if (onShowToast) {
-      onShowToast(`Kode referral ${user.referralCode} berhasil disalin!`);
+      onShowToast(`Link referral ${referralLink} berhasil disalin!`);
     }
     setTimeout(() => setCopiedReferral(false), 2000);
   };
 
   const handleShareReferral = () => {
-    const shareText = `Halo! Yuk gabung investasi emas batangan 24K berizin di NusantaraGold. Dapatkan bonus pendaftaran hingga Rp 30.000 dan komisi referral 3%! Gunakan kode undangan saya: ${user.referralCode || 'NGOLD2026'}`;
+    const shareText = `Halo! Yuk gabung investasi emas batangan 24K berizin di NusantaraGold. Dapatkan bonus pendaftaran hingga Rp 30.000 dan komisi referral 3%! Daftar melalui link resmi ini: ${referralLink} (Kode Undangan: ${user.referralCode || 'NGOLD2026'})`;
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
     window.open(url, '_blank');
   };
@@ -585,42 +577,35 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
               </div>
             </div>
 
-            {/* Referral Tools Bar: Copy Code + WhatsApp Share + Test Simulator */}
-            <div className="mt-3.5 pt-3 border-t border-[#262018] flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-[#8C857B]">Kode Anda:</span>
-                <span className="px-2 py-0.5 rounded-lg bg-[#1F1B16] border border-[#3E3424] font-mono text-xs font-bold text-amber-300">
-                  {user.referralCode || 'NGOLD2026'}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCopyReferral}
-                  className="py-1 px-2.5 rounded-lg bg-[#2A2318] hover:bg-[#362C1E] text-amber-300 text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer"
-                >
-                  {copiedReferral ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedReferral ? 'Tersalin' : 'Salin'}</span>
-                </button>
-              </div>
+            {/* Referral Tools Bar: Link Undangan & WhatsApp Share */}
+            <div className="mt-3.5 pt-3 border-t border-[#262018] space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px] text-[#8C857B]">Link Undangan Resmi:</span>
+                  <span className="px-2 py-0.5 rounded-lg bg-[#1F1B16] border border-[#3E3424] font-mono text-[11px] font-bold text-amber-300 truncate max-w-[210px] sm:max-w-xs">
+                    https://nusantaragold.site/?ref={user.referralCode || 'NGOLD2026'}
+                  </span>
+                </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleShareReferral}
-                  className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[11px] font-bold hover:brightness-110 transition flex items-center gap-1.5 cursor-pointer shadow-sm"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Ajak Teman</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyReferral}
+                    className="py-1.5 px-3 rounded-xl bg-[#2A2318] hover:bg-[#362C1E] text-amber-300 text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer"
+                  >
+                    {copiedReferral ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedReferral ? 'Link Tersalin' : 'Salin Link'}</span>
+                  </button>
 
-                {/* Simulator Tambah Teman (Mempermudah Pengujian/Demo) */}
-                <button
-                  type="button"
-                  onClick={handleSimulateAddReferral}
-                  className="py-1 px-2.5 rounded-xl bg-[#201D1A] hover:bg-[#2B2723] border border-[#3A3226] text-[#A0988C] hover:text-[#F7F5F2] text-[10.5px] font-medium transition cursor-pointer"
-                  title="Simulasi tambah 1 referral untuk kemudahan uji coba penarikan"
-                >
-                  <span>+1 Demo</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleShareReferral}
+                    className="py-1.5 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[11px] font-bold hover:brightness-110 transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Ajak Teman</span>
+                  </button>
+                </div>
               </div>
             </div>
           </section>
@@ -1052,20 +1037,17 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
                   className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md"
                 >
                   <Share2 className="w-4 h-4" />
-                  <span>Ajak Teman via WhatsApp</span>
+                  <span>Ajak Teman Sekarang</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    handleSimulateAddReferral();
-                    if (currentReferrals + 1 >= 10) {
-                      setShowReferralLockedNotice(false);
-                    }
+                    handleCopyReferral();
                   }}
-                  className="py-3 px-3 rounded-xl bg-[#231E18] hover:bg-[#2F2920] border border-[#3E3424] text-xs font-semibold text-amber-300 hover:text-amber-200 transition cursor-pointer text-center"
-                  title="Simulasi Tambah 1 Referral Demo"
+                  className="py-3 px-3.5 rounded-xl bg-[#231E18] hover:bg-[#2F2920] border border-[#3E3424] text-xs font-semibold text-amber-300 hover:text-amber-200 transition cursor-pointer text-center flex items-center justify-center gap-1.5"
                 >
-                  <span>+1 Demo</span>
+                  <Copy className="w-4 h-4" />
+                  <span>Salin Link</span>
                 </button>
                 <button
                   type="button"

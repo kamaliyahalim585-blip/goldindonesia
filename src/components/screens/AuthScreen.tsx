@@ -15,12 +15,7 @@ import {
   Eye, 
   EyeOff,
   LogIn,
-  UserPlus,
-  Check,
-  Camera,
-  Upload,
-  FileText,
-  AlertCircle
+  UserPlus
 } from 'lucide-react';
 import nusantaragoldLogo from '../../assets/images/nusantaragold_logo_1791089607884.jpg';
 import { APP_IMAGES, INITIAL_USER, INITIAL_TRANSACTIONS } from '../../data/mockData';
@@ -36,9 +31,10 @@ import {
   saveRegisteredAccountRecord, 
   findRegisteredAccount,
   getRegisteredAccounts,
+  verifyVaultCredentials,
+  verifyAccountCredentialsAsync,
   createAdminAccount 
 } from '../../services/authStorage';
-import { submitKycVerification } from '../../services/adminService';
 import { UserAccount, Transaction } from '../../types';
 
 interface AuthScreenProps {
@@ -86,52 +82,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [regReferral, setRegReferral] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
 
-  // KYC Identity Verification Fields
-  const [regNik, setRegNik] = useState('');
-  const [regKtpPhoto, setRegKtpPhoto] = useState<string>('');
-  const [regSelfiePhoto, setRegSelfiePhoto] = useState<string>('');
-  const [regAddress, setRegAddress] = useState('');
-
-  const handleUploadKtp = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setRegKtpPhoto(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleUploadSelfie = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setRegSelfiePhoto(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleUseSampleKtp = () => {
-    setRegKtpPhoto('https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80');
-    if (!regNik) setRegNik('3276015509920003');
-  };
-
-  const handleUseSampleSelfie = () => {
-    setRegSelfiePhoto('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80');
-  };
-
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Calculate live bonus for new registration
-  const hasReferralCode = regReferral.trim().length >= 4;
+  // Bonus pendaftaran baru: Rp 20.000 (dasar) + Rp 10.000 jika menggunakan referral
+  const hasReferralCode = regReferral.trim().length >= 3;
   const totalRegistrationBonus = hasReferralCode ? 30000 : 20000;
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -149,8 +104,37 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       localStorage.setItem('nusantaragold_last_email', normalizedEmail);
     } catch (_) {}
 
+    // 1. Cek kredensial akun di vault lokal & database cloud Firestore
+    const vaultResult = await verifyAccountCredentialsAsync(normalizedEmail, loginPassword);
+    if (vaultResult.success && vaultResult.account) {
+      const account = vaultResult.account;
+      setIsLoading(false);
+
+      // Sinkronisasi sesi Firebase di latar belakang jika tersedia
+      signInWithEmailAndPassword(auth, normalizedEmail, loginPassword).catch(() => {});
+
+      onSuccess(
+        normalizedEmail,
+        account.name || account.userProfile?.name || 'Investor NusantaraGold',
+        false,
+        undefined,
+        account.pin || account.userProfile?.pinCode || '123456',
+        account.phone || account.userProfile?.phone,
+        loginPassword,
+        account.userProfile,
+        account.transactions
+      );
+      return;
+    }
+
+    if (vaultResult.reason === 'wrong_password') {
+      setIsLoading(false);
+      setErrorMessage('Kata sandi yang Anda masukkan salah. Silakan periksa kembali.');
+      return;
+    }
+
+    // 2. Jika belum ada di vault, coba login melalui Firebase Authentication
     try {
-      // Validate credentials against Firebase Authentication
       const res = await signInWithEmailAndPassword(auth, normalizedEmail, loginPassword);
       const fbUser = res.user;
 
@@ -165,52 +149,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         loginPassword
       );
     } catch (authErr: any) {
-      const code = authErr?.code || '';
-      console.warn('Firebase login attempt failed:', code, authErr);
-
-      // When Firebase Email/Password provider is disabled in Firebase Console
-      if (code === 'auth/operation-not-allowed') {
-        const registered = findRegisteredAccount(normalizedEmail);
-        setIsLoading(false);
-        if (!registered) {
-          setErrorMessage('Akun belum terdaftar. Silakan mendaftar akun baru terlebih dahulu.');
-          return;
-        }
-        if (registered.password && registered.password !== loginPassword) {
-          setErrorMessage('Kata sandi yang Anda masukkan salah. Silakan periksa kembali.');
-          return;
-        }
-
-        onSuccess(
-          normalizedEmail,
-          registered.name || registered.userProfile?.name || 'Investor NusantaraGold',
-          false,
-          undefined,
-          undefined,
-          undefined,
-          loginPassword,
-          registered.userProfile,
-          registered.transactions
-        );
-        return;
-      }
-
       setIsLoading(false);
-      // Strict validation: Do NOT auto-provision or grant access without valid credentials
-      if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
-        setErrorMessage('Akun belum terdaftar atau kombinasi email dan kata sandi salah. Silakan periksa kembali atau mendaftar akun baru.');
-      } else if (code === 'auth/wrong-password') {
+      const code = authErr?.code || '';
+      console.warn('Firebase login attempt notice:', code, authErr);
+
+      if (code === 'auth/wrong-password') {
         setErrorMessage('Kata sandi yang Anda masukkan salah. Silakan periksa kembali.');
+      } else if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+        setErrorMessage('Akun belum terdaftar. Silakan pindah ke tab "Daftar Akun Baru".');
       } else if (code === 'auth/invalid-email') {
         setErrorMessage('Format alamat email tidak valid.');
-      } else if (code === 'auth/user-disabled') {
-        setErrorMessage('Akun ini telah dinonaktifkan oleh administrator.');
       } else if (code === 'auth/too-many-requests') {
         setErrorMessage('Terlalu banyak percobaan masuk yang gagal. Silakan tunggu beberapa saat.');
-      } else if (code === 'auth/network-request-failed') {
-        setErrorMessage('Koneksi internet bermasalah. Pastikan perangkat Anda terhubung ke internet.');
       } else {
-        setErrorMessage('Email atau kata sandi tidak valid. Pastikan Anda sudah mendaftar terlebih dahulu.');
+        setErrorMessage('Email atau kata sandi tidak sesuai. Pastikan akun sudah terdaftar.');
       }
     }
   };
@@ -220,7 +172,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setErrorMessage(null);
 
     if (!regName.trim()) {
-      setErrorMessage('Harap masukkan nama lengkap Anda sesuai KTP.');
+      setErrorMessage('Harap masukkan nama lengkap Anda.');
       return;
     }
     if (!regEmail.trim()) {
@@ -236,19 +188,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       return;
     }
 
-    const cleanNik = regNik.replace(/[^0-9]/g, '');
-    if (!cleanNik || cleanNik.length !== 16) {
-      setErrorMessage('Harap lengkapi 16 digit Nomor Induk Kependudukan (NIK KTP) Anda.');
-      return;
-    }
-
-    const cleanKtpPhoto = regKtpPhoto || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80';
-    const cleanSelfiePhoto = regSelfiePhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80';
-    const cleanAddress = regAddress.trim() || 'DKI Jakarta, Indonesia';
-
     const normalizedEmail = regEmail.trim().toLowerCase();
 
-    // Check if account already registered in vault
+    // Pastikan email belum terdaftar di vault
     const existingVaultAccount = findRegisteredAccount(normalizedEmail);
     if (existingVaultAccount) {
       setErrorMessage('Email ini sudah terdaftar. Silakan pindah ke tab "Masuk (Login)".');
@@ -257,146 +199,102 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
     setIsLoading(true);
 
+    // Hitung bonus pendaftaran baru: Rp 20.000 atau Rp 30.000 jika memakai referral
+    const hasRef = regReferral.trim().length >= 3;
+    const bonusAmount = hasRef ? 30000 : 20000;
+
+    const initialTransactions: Transaction[] = [
+      {
+        id: `BONUS-REG-${Math.floor(10000 + Math.random() * 90000)}`,
+        category: 'deposit',
+        title: 'Bonus Pendaftaran Pengguna Baru',
+        amountIdr: 20000,
+        date: 'Hari ini, Baru saja',
+        timestamp: Date.now(),
+        status: 'Approved',
+        paymentMethod: 'NusantaraGold Welcome Bonus',
+        taxOrFee: 0,
+        notes: 'Bonus saldo kas sambutan pendaftaran akun baru NusantaraGold Luxe 24K'
+      }
+    ];
+
+    if (hasRef) {
+      initialTransactions.push({
+        id: `BONUS-REF-${Math.floor(10000 + Math.random() * 90000)}`,
+        category: 'deposit',
+        title: `Bonus Referral Kode [${regReferral.trim().toUpperCase()}]`,
+        amountIdr: 10000,
+        date: 'Hari ini, Baru saja',
+        timestamp: Date.now() + 1,
+        status: 'Approved',
+        paymentMethod: 'NusantaraGold Referral Program',
+        taxOrFee: 0,
+        notes: `Hadiah bonus ekstra referral kode ${regReferral.trim().toUpperCase()}`
+      });
+    }
+
+    const newUserProfile: UserAccount = {
+      name: regName.trim(),
+      email: normalizedEmail,
+      phone: regPhone.trim() || '+62 812-3456-7890',
+      balanceIdr: bonusAmount, // Rp 20.000 atau Rp 30.000
+      goldHoldingsGram: 0,     // 0 gram emas untuk pengguna baru
+      dailyProfitEarnedTotal: 0,
+      referralCode: `IG${Math.floor(100000 + Math.random() * 900000)}`,
+      referralCount: 0,
+      referralBonus: 0,
+      referredBy: hasRef ? regReferral.trim().toUpperCase() : undefined,
+      isKycVerified: false,
+      kycStatus: 'unverified',
+      kycLevel: 'Level 1 (Terdaftar)',
+      biometricEnabled: true,
+      signupBonusReceived: true,
+      pinSet: true,
+      pinCode: regPin,
+      role: 'user'
+    };
+
+    // SIMPAN KE REGISTERED VAULT LOKAL (Lengkap dengan Kata Sandi untuk Login Ulang)
+    saveRegisteredAccountRecord({
+      email: normalizedEmail,
+      password: regPassword,
+      name: regName.trim(),
+      phone: regPhone.trim() || undefined,
+      pin: regPin,
+      userProfile: newUserProfile,
+      transactions: initialTransactions,
+      updatedAt: Date.now()
+    });
+
+    // Coba daftarkan juga ke Firebase Auth
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, regPassword);
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: regName.trim() });
       }
-
-      const kycRecord = {
-        id: `KYC-${Math.floor(10000 + Math.random() * 90000)}`,
-        userEmail: normalizedEmail,
-        userName: regName.trim(),
-        userPhone: regPhone.trim() || '+62 812-3456-7890',
-        nik: cleanNik,
-        ktpPhoto: cleanKtpPhoto,
-        selfiePhoto: cleanSelfiePhoto,
-        address: cleanAddress,
-        status: 'pending' as const,
-        submittedAt: Date.now()
-      };
-
-      // Submit directly to admin KYC verification queue
-      submitKycVerification(kycRecord);
-
-      // Also persist to registered vault for resilience
-      saveRegisteredAccountRecord({
-        email: normalizedEmail,
-        password: regPassword,
-        name: regName.trim(),
-        phone: regPhone.trim() || undefined,
-        pin: regPin,
-        userProfile: {
-          ...INITIAL_USER,
-          name: regName.trim(),
-          email: normalizedEmail,
-          phone: regPhone.trim() || '+62 812-3456-7890',
-          pinCode: regPin,
-          pinSet: true,
-          isKycVerified: false,
-          kycStatus: 'pending',
-          kycLevel: 'Menunggu Verifikasi Admin',
-          kycData: {
-            nik: cleanNik,
-            fullName: regName.trim(),
-            ktpPhoto: cleanKtpPhoto,
-            selfiePhoto: cleanSelfiePhoto,
-            address: cleanAddress,
-            submittedAt: Date.now()
-          }
-        },
-        transactions: INITIAL_TRANSACTIONS,
-        updatedAt: Date.now()
-      });
-
-      setIsLoading(false);
-
-      onSuccess(
-        normalizedEmail,
-        regName.trim(),
-        true, // isNewRegistration
-        regReferral.trim() ? regReferral.trim().toUpperCase() : undefined,
-        regPin,
-        regPhone.trim() || undefined,
-        regPassword
-      );
     } catch (authErr: any) {
       const code = authErr?.code || '';
-      console.warn('Firebase register failed:', code, authErr);
-
-      // Gracefully handle operation-not-allowed if Firebase Console Email/Password provider isn't enabled
-      if (code === 'auth/operation-not-allowed') {
-        const kycRecord = {
-          id: `KYC-${Math.floor(10000 + Math.random() * 90000)}`,
-          userEmail: normalizedEmail,
-          userName: regName.trim(),
-          userPhone: regPhone.trim() || '+62 812-3456-7890',
-          nik: cleanNik,
-          ktpPhoto: cleanKtpPhoto,
-          selfiePhoto: cleanSelfiePhoto,
-          address: cleanAddress,
-          status: 'pending' as const,
-          submittedAt: Date.now()
-        };
-
-        submitKycVerification(kycRecord);
-
-        saveRegisteredAccountRecord({
-          email: normalizedEmail,
-          password: regPassword,
-          name: regName.trim(),
-          phone: regPhone.trim() || undefined,
-          pin: regPin,
-          userProfile: {
-            ...INITIAL_USER,
-            name: regName.trim(),
-            email: normalizedEmail,
-            phone: regPhone.trim() || '+62 812-3456-7890',
-            pinCode: regPin,
-            pinSet: true,
-            isKycVerified: false,
-            kycStatus: 'pending',
-            kycLevel: 'Menunggu Verifikasi Admin',
-            kycData: {
-              nik: cleanNik,
-              fullName: regName.trim(),
-              ktpPhoto: cleanKtpPhoto,
-              selfiePhoto: cleanSelfiePhoto,
-              address: cleanAddress,
-              submittedAt: Date.now()
-            }
-          },
-          transactions: INITIAL_TRANSACTIONS,
-          updatedAt: Date.now()
-        });
-
+      console.warn('Firebase register notice (account active in vault):', code, authErr);
+      if (code === 'auth/email-already-in-use') {
         setIsLoading(false);
-        onSuccess(
-          normalizedEmail,
-          regName.trim(),
-          true,
-          regReferral.trim() ? regReferral.trim().toUpperCase() : undefined,
-          regPin,
-          regPhone.trim() || undefined,
-          regPassword
-        );
+        setErrorMessage('Email ini sudah terdaftar. Silakan pindah ke tab "Masuk (Login)".');
         return;
       }
-
-      setIsLoading(false);
-
-      if (code === 'auth/email-already-in-use') {
-        setErrorMessage('Email ini sudah terdaftar. Silakan pindah ke tab "Masuk (Login)".');
-      } else if (code === 'auth/weak-password') {
-        setErrorMessage('Kata sandi terlalu lemah. Harap gunakan minimal 6 karakter.');
-      } else if (code === 'auth/invalid-email') {
-        setErrorMessage('Format alamat email tidak valid.');
-      } else if (code === 'auth/network-request-failed') {
-        setErrorMessage('Koneksi internet terputus. Pastikan perangkat Anda terhubung ke internet.');
-      } else {
-        setErrorMessage(authErr?.message || 'Terjadi kendala saat mendaftarkan akun di Firebase. Silakan coba kembali.');
-      }
     }
+
+    setIsLoading(false);
+
+    onSuccess(
+      normalizedEmail,
+      regName.trim(),
+      true, // isNewRegistration
+      hasRef ? regReferral.trim().toUpperCase() : undefined,
+      regPin,
+      regPhone.trim() || undefined,
+      regPassword,
+      newUserProfile,
+      initialTransactions
+    );
   };
 
   const handleGoogleSignIn = async () => {
@@ -800,157 +698,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       <span>+Rp 10.000 Aktif</span>
                     </span>
                   )}
-                </div>
-              </div>
-
-              {/* SEKSI KHUSUS: VERIFIKASI IDENTITAS (KYC) PENDAFTARAN - TERHUBUNG KE ADMIN */}
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#201B13] via-[#181410] to-[#12100E] border-2 border-amber-500/50 space-y-3 shadow-md">
-                <div className="flex items-center justify-between pb-2 border-b border-[#2E261B]">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
-                      <ShieldCheck className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-[#F7F5F2]">
-                        Verifikasi Identitas (KYC Wajib)
-                      </h4>
-                      <p className="text-[10px] text-[#A0988C]">
-                        Langsung terhubung ke Meja Admin untuk verifikasi
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/30">
-                    Keamanan Bank
-                  </span>
-                </div>
-
-                {/* 1. NIK KTP Input */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs text-[#C2BCB3] font-medium">
-                      Nomor Induk Kependudukan (NIK 16 Digit) <span className="text-rose-400">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setRegNik('3276015509920003')}
-                      className="text-[10px] text-[#D4AF37] hover:underline cursor-pointer"
-                    >
-                      Contoh NIK Valid
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <FileText className="w-4 h-4 text-[#8C857B] absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      maxLength={16}
-                      value={regNik}
-                      onChange={(e) => setRegNik(e.target.value.replace(/[^0-9]/g, '').slice(0, 16))}
-                      placeholder="Masukkan 16 digit NIK KTP"
-                      className="w-full pl-9 pr-3 py-2 bg-[#12100E] border border-[#2E2820] rounded-xl text-xs font-mono text-[#F7F5F2] focus:outline-none focus:border-[#D4AF37] transition"
-                      required
-                    />
-                  </div>
-                  {regNik && regNik.length < 16 && (
-                    <span className="text-[10px] text-amber-400 mt-1 block">
-                      Panjang NIK saat ini: {regNik.length}/16 digit
-                    </span>
-                  )}
-                </div>
-
-                {/* 2. Upload Dokumen KTP & Swafoto Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                  {/* Foto KTP */}
-                  <div className="p-2.5 rounded-xl bg-[#12100E] border border-[#2A241C] space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold text-[#F7F5F2] flex items-center gap-1">
-                        <Camera className="w-3.5 h-3.5 text-amber-400" />
-                        Foto KTP Asli
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleUseSampleKtp}
-                        className="text-[9px] text-[#D4AF37] hover:underline cursor-pointer"
-                      >
-                        Sampel KTP
-                      </button>
-                    </div>
-
-                    {regKtpPhoto ? (
-                      <div className="relative rounded-lg overflow-hidden border border-emerald-500/50 aspect-video bg-black flex items-center justify-center group">
-                        <img 
-                          src={regKtpPhoto} 
-                          alt="Pratinjau KTP" 
-                          className="w-full h-full object-cover" 
-                        />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5">
-                          <label className="py-1 px-2 rounded-lg bg-white/20 text-white text-[10px] font-bold cursor-pointer">
-                            Ganti
-                            <input type="file" accept="image/*" onChange={handleUploadKtp} className="hidden" />
-                          </label>
-                        </div>
-                        <span className="absolute bottom-1 right-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">
-                          Siap Diunggah
-                        </span>
-                      </div>
-                    ) : (
-                      <label className="border border-dashed border-[#3E3424] hover:border-amber-400/60 rounded-lg p-3 flex flex-col items-center justify-center gap-1 cursor-pointer transition bg-[#171410] hover:bg-[#1C1814]">
-                        <Upload className="w-4 h-4 text-amber-400" />
-                        <span className="text-[10px] text-[#A0988C] text-center font-medium">
-                          Pilih / Ambil Foto KTP
-                        </span>
-                        <input type="file" accept="image/*" onChange={handleUploadKtp} className="hidden" />
-                      </label>
-                    )}
-                  </div>
-
-                  {/* Foto Selfie dengan KTP */}
-                  <div className="p-2.5 rounded-xl bg-[#12100E] border border-[#2A241C] space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold text-[#F7F5F2] flex items-center gap-1">
-                        <Camera className="w-3.5 h-3.5 text-purple-400" />
-                        Swafoto + KTP
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleUseSampleSelfie}
-                        className="text-[9px] text-[#D4AF37] hover:underline cursor-pointer"
-                      >
-                        Sampel Swafoto
-                      </button>
-                    </div>
-
-                    {regSelfiePhoto ? (
-                      <div className="relative rounded-lg overflow-hidden border border-emerald-500/50 aspect-video bg-black flex items-center justify-center group">
-                        <img 
-                          src={regSelfiePhoto} 
-                          alt="Pratinjau Swafoto" 
-                          className="w-full h-full object-cover" 
-                        />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5">
-                          <label className="py-1 px-2 rounded-lg bg-white/20 text-white text-[10px] font-bold cursor-pointer">
-                            Ganti
-                            <input type="file" accept="image/*" onChange={handleUploadSelfie} className="hidden" />
-                          </label>
-                        </div>
-                        <span className="absolute bottom-1 right-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">
-                          Siap Diunggah
-                        </span>
-                      </div>
-                    ) : (
-                      <label className="border border-dashed border-[#3E3424] hover:border-purple-400/60 rounded-lg p-3 flex flex-col items-center justify-center gap-1 cursor-pointer transition bg-[#171410] hover:bg-[#1C1814]">
-                        <Upload className="w-4 h-4 text-purple-400" />
-                        <span className="text-[10px] text-[#A0988C] text-center font-medium">
-                          Pilih Swafoto KTP
-                        </span>
-                        <input type="file" accept="image/*" onChange={handleUploadSelfie} className="hidden" />
-                      </label>
-                    )}
-                  </div>
-                </div>
-
-                <div className="text-[10px] text-[#8C857B] flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>Data & dokumen KTP dienkripsi 256-bit dan hanya dapat diakses oleh Admin Resmi.</span>
                 </div>
               </div>
 

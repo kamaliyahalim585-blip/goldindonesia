@@ -21,6 +21,7 @@ import { PinVerificationModal } from '../PinVerificationModal';
 
 interface EmiratesPackagesModalProps {
   user: UserAccount;
+  initialTier?: 'bronze' | 'gold' | 'platinum';
   onClose: () => void;
   onActivatePackage: (pkg: EmiratesPackage) => void;
   onGoToDeposit: (suggestedAmount: number) => void;
@@ -29,12 +30,13 @@ interface EmiratesPackagesModalProps {
 
 export const EmiratesPackagesModal: React.FC<EmiratesPackagesModalProps> = ({
   user,
+  initialTier = 'gold',
   onClose,
   onActivatePackage,
   onGoToDeposit,
   onShowToast
 }) => {
-  const [selectedTier, setSelectedTier] = useState<'bronze' | 'gold' | 'platinum'>('gold');
+  const [selectedTier, setSelectedTier] = useState<'bronze' | 'gold' | 'platinum'>(initialTier);
   const [showPinModal, setShowPinModal] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
@@ -303,9 +305,10 @@ export const EmiratesPackagesModal: React.FC<EmiratesPackagesModalProps> = ({
       {/* PIN Verification Modal */}
       {showPinModal && (
         <PinVerificationModal
-          userPin={user.pinCode || '123456'}
-          actionTitle={`Investasi ${activePackage.name}`}
-          actionSubtitle={`Konfirmasi pendebetan kas ${formatIDR(activePackage.priceIdr)} dan penerimaan bonus ${formatIDR(activePackage.bonusAmountIdr)}`}
+          isOpen={showPinModal}
+          expectedPin={user.pinCode || '123456'}
+          title={`Investasi ${activePackage.name}`}
+          subtitle={`Konfirmasi pendebetan kas ${formatIDR(activePackage.priceIdr)} dan klaim bonus cashback ${activePackage.bonusPercent}% (${formatIDR(activePackage.bonusAmountIdr)})`}
           onSuccess={handlePinSuccess}
           onClose={() => setShowPinModal(false)}
         />

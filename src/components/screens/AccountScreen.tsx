@@ -544,32 +544,6 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
               <ChevronRight className="w-4 h-4 text-[#8C857B] group-hover:text-[#D4AF37] transition" />
             </div>
           </div>
-
-          {/* Ganti Akun / Masuk / Daftar Akun Baru */}
-          <div 
-            onClick={() => {
-              if (onOpenAuth) onOpenAuth('register');
-            }}
-            className="p-4 flex items-center justify-between hover:bg-[#1E1A16] transition cursor-pointer group"
-          >
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2E2616] to-[#1A1814] border border-[#D4AF37]/35 flex items-center justify-center text-[#D4AF37] group-hover:scale-105 transition-transform">
-                <UserPlus className="w-5 h-5 stroke-[2.2]" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-[#F7F5F2] group-hover:text-[#D4AF37] transition-colors">
-                  Ganti Akun atau Buka Akun Baru
-                </h4>
-                <p className="text-[10px] text-[#A0988C]">Masuk dengan akun lain atau daftarkan akun baru (Bonus s.d Rp 30.000)</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-[#F3E5AB] bg-[#2E2616] px-2 py-0.5 rounded border border-[#D4AF37]/40">
-                Login / Daftar
-              </span>
-              <ChevronRight className="w-4 h-4 text-[#8C857B] group-hover:text-[#D4AF37] transition" />
-            </div>
-          </div>
         </div>
       </section>
 

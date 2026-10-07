@@ -1,5 +1,6 @@
 import { UserAccount, Transaction } from '../types';
 import { INITIAL_USER, INITIAL_TRANSACTIONS } from '../data/mockData';
+import { db, doc, getDoc, setDoc } from '../lib/firebase';
 
 export interface RegisteredAccountRecord {
   email: string;
@@ -13,6 +14,11 @@ export interface RegisteredAccountRecord {
 }
 
 const VAULT_STORAGE_KEY = 'indogold_accounts_vault_v1';
+const VAULT_STORAGE_KEY_V2 = 'nusantaragold_accounts_vault_v1';
+
+export const encodeDocId = (email: string): string => {
+  return email.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+};
 
 /**
  * Known default accounts for instant access
@@ -147,9 +153,11 @@ const DEFAULT_ACCOUNTS: Record<string, RegisteredAccountRecord> = {
  */
 export function getRegisteredAccounts(): Record<string, RegisteredAccountRecord> {
   try {
-    const raw = localStorage.getItem(VAULT_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return { ...DEFAULT_ACCOUNTS, ...parsed };
+    const rawV2 = localStorage.getItem(VAULT_STORAGE_KEY_V2);
+    const rawV1 = localStorage.getItem(VAULT_STORAGE_KEY);
+    const parsedV2 = rawV2 ? JSON.parse(rawV2) : {};
+    const parsedV1 = rawV1 ? JSON.parse(rawV1) : {};
+    return { ...DEFAULT_ACCOUNTS, ...parsedV1, ...parsedV2 };
   } catch (err) {
     console.warn('Failed to parse registered accounts vault:', err);
     return { ...DEFAULT_ACCOUNTS };
@@ -157,7 +165,45 @@ export function getRegisteredAccounts(): Record<string, RegisteredAccountRecord>
 }
 
 /**
- * Save or update a registered account record
+ * Save account record to Firestore asynchronously
+ */
+export async function saveAccountRecordToFirestore(record: RegisteredAccountRecord): Promise<void> {
+  try {
+    const normalizedEmail = record.email.trim().toLowerCase();
+    const docId = encodeDocId(normalizedEmail);
+    const userRef = doc(db, 'users', docId);
+
+    const safeBal = Number(record.userProfile?.balanceIdr !== undefined ? record.userProfile.balanceIdr : 20000);
+    const safeGold = Number(record.userProfile?.goldHoldingsGram !== undefined ? record.userProfile.goldHoldingsGram : 0);
+
+    await setDoc(userRef, {
+      id: docId,
+      email: normalizedEmail,
+      password: record.password,
+      name: record.name,
+      phone: record.phone || '',
+      pin: record.pin,
+      pinCode: record.pin,
+      balanceIdr: safeBal,
+      goldHoldingsGram: safeGold,
+      referralCode: record.userProfile?.referralCode || `IG${Math.floor(100000 + Math.random() * 900000)}`,
+      referralCount: Number(record.userProfile?.referralCount || 0),
+      referralBonus: Number(record.userProfile?.referralBonus || 0),
+      referredBy: record.userProfile?.referredBy || '',
+      isKycVerified: Boolean(record.userProfile?.isKycVerified ?? false),
+      kycStatus: record.userProfile?.kycStatus || 'unverified',
+      kycLevel: record.userProfile?.kycLevel || 'Level 1 (Terdaftar)',
+      role: record.userProfile?.role || 'user',
+      signupBonusReceived: true,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (err) {
+    console.warn('saveAccountRecordToFirestore notice:', err);
+  }
+}
+
+/**
+ * Save or update a registered account record (saves to both localStorage keys & Firestore)
  */
 export function saveRegisteredAccountRecord(record: RegisteredAccountRecord): void {
   try {
@@ -168,7 +214,12 @@ export function saveRegisteredAccountRecord(record: RegisteredAccountRecord): vo
       email: normalizedEmail,
       updatedAt: Date.now()
     };
-    localStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(vault));
+    const serialized = JSON.stringify(vault);
+    localStorage.setItem(VAULT_STORAGE_KEY, serialized);
+    localStorage.setItem(VAULT_STORAGE_KEY_V2, serialized);
+
+    // Save to Firestore in background
+    saveAccountRecordToFirestore(record).catch(() => {});
   } catch (err) {
     console.warn('Failed to save to accounts vault:', err);
   }
@@ -301,4 +352,76 @@ export function verifyVaultCredentials(
   }
 
   return { success: false, reason: 'wrong_password', account };
+}
+
+/**
+ * Robust async verification checking local storage vault and Firestore database
+ */
+export async function verifyAccountCredentialsAsync(
+  email: string,
+  password: string
+): Promise<{ success: boolean; account?: RegisteredAccountRecord; reason?: 'not_found' | 'wrong_password' }> {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // 1. Try local cache first
+  const localRes = verifyVaultCredentials(normalizedEmail, password);
+  if (localRes.success || localRes.reason === 'wrong_password') {
+    return localRes;
+  }
+
+  // 2. Query Firestore /users/{encodedEmail} in case user registered on another device/browser
+  try {
+    const docId = encodeDocId(normalizedEmail);
+    const snap = await getDoc(doc(db, 'users', docId));
+    if (snap.exists()) {
+      const data = snap.data();
+      const storedPassword = data.password;
+
+      // If password matches or account has no password yet
+      if (!storedPassword || storedPassword === password) {
+        const safeBal = Number(data.balanceIdr !== undefined ? data.balanceIdr : 20000);
+        const safeGold = Number(data.goldHoldingsGram !== undefined ? data.goldHoldingsGram : 0);
+
+        const restoredAccount: RegisteredAccountRecord = {
+          email: normalizedEmail,
+          password: password,
+          name: data.name || 'Investor NusantaraGold',
+          phone: data.phone || undefined,
+          pin: data.pin || data.pinCode || '123456',
+          userProfile: {
+            ...INITIAL_USER,
+            name: data.name || 'Investor NusantaraGold',
+            email: normalizedEmail,
+            phone: data.phone || '0812-3456-7890',
+            balanceIdr: safeBal,
+            goldHoldingsGram: safeGold,
+            referralCode: data.referralCode || `IG${Math.floor(100000 + Math.random() * 900000)}`,
+            referralCount: Number(data.referralCount || 0),
+            referralBonus: Number(data.referralBonus || 0),
+            referredBy: data.referredBy,
+            isKycVerified: Boolean(data.isKycVerified ?? false),
+            kycStatus: data.kycStatus || 'unverified',
+            kycLevel: data.kycLevel || 'Level 1 (Terdaftar)',
+            biometricEnabled: data.biometricEnabled ?? true,
+            signupBonusReceived: true,
+            pinSet: true,
+            pinCode: data.pin || data.pinCode || '123456',
+            role: data.role || 'user'
+          },
+          transactions: Array.isArray(data.transactions) ? data.transactions : [],
+          updatedAt: Date.now()
+        };
+
+        // Cache into local storage
+        saveRegisteredAccountRecord(restoredAccount);
+        return { success: true, account: restoredAccount };
+      } else {
+        return { success: false, reason: 'wrong_password' };
+      }
+    }
+  } catch (err) {
+    console.warn('Firestore verification in verifyAccountCredentialsAsync error:', err);
+  }
+
+  return { success: false, reason: 'not_found' };
 }

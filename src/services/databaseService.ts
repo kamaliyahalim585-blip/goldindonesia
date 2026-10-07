@@ -70,30 +70,27 @@ export async function syncUserProfile(
         name: data.name || firebaseUser.displayName || 'Investor NusantaraGold',
         email: data.email || firebaseUser.email || '',
         phone: data.phone || '0812-9876-5432',
-        isKycVerified: data.kycVerified ?? true,
-        kycLevel: 'Tingkat 2 (Terverifikasi Dukcapil)',
+        isKycVerified: Boolean(data.isKycVerified ?? false),
+        kycStatus: data.kycStatus || 'unverified',
+        kycLevel: data.kycLevel || 'Level 1 (Terdaftar)',
         referralCode: data.referralCode || `NG${firebaseUser.uid.slice(0, 5).toUpperCase()}`,
-        referralBonus: 10000,
-        balanceIdr: Number(data.balanceIdr ?? 1500000),
-        goldHoldingsGram: Number(data.goldHoldingsGram ?? 12.5),
+        referralBonus: Number(data.referralBonus ?? 0),
+        balanceIdr: Number(data.balanceIdr !== undefined ? data.balanceIdr : 20000),
+        goldHoldingsGram: Number(data.goldHoldingsGram !== undefined ? data.goldHoldingsGram : 0),
         biometricEnabled: data.biometricEnabled ?? true,
         pinSet: data.pinSet ?? true,
         pinCode: data.pinCode || '123456',
         signupBonusReceived: data.signupBonusReceived ?? true,
         dailyProfitEarnedTotal: Number(data.dailyProfitEarnedTotal ?? 0),
         lastDailyProfitClaimDate: data.lastDailyProfitClaimDate || '',
-        referralCount: Number(data.referralCount ?? 3),
+        referralCount: Number(data.referralCount ?? 0),
       };
     } else {
-      // Calculate initial balance: default starter + bonus if new
-      let initialBalance = 1500000;
-      let bonusGiven = false;
-      if (isNewUser) {
-        initialBalance += 20000; // Rp 20.000 signup bonus
-        if (referralCodeUsed) {
-          initialBalance += 10000; // Rp 10.000 referral bonus
-        }
-        bonusGiven = true;
+      // Saldo awal pendaftaran pengguna baru: Rp 20.000 (+Rp 10.000 jika referral)
+      let initialBalance = 20000;
+      let bonusGiven = true;
+      if (referralCodeUsed && referralCodeUsed.trim()) {
+        initialBalance += 10000; // Rp 10.000 referral bonus -> Total Rp 30.000
       }
 
       const newProfile: Record<string, unknown> = {
@@ -102,15 +99,20 @@ export async function syncUserProfile(
         email: firebaseUser.email || '',
         phone: '0812-9876-5432',
         referralCode: `IG${firebaseUser.uid.slice(0, 5).toUpperCase()}`,
-        kycVerified: true,
+        isKycVerified: false,
+        kycStatus: 'unverified',
+        kycLevel: 'Level 1 (Terdaftar)',
+        role: 'user',
         balanceIdr: initialBalance,
-        goldHoldingsGram: 12.5,
+        goldHoldingsGram: 0,
         biometricEnabled: true,
         pinSet: true,
+        pinCode: '123456',
         signupBonusReceived: bonusGiven,
         dailyProfitEarnedTotal: 0,
         lastDailyProfitClaimDate: '',
         referralCount: 0,
+        referralBonus: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -122,14 +124,17 @@ export async function syncUserProfile(
         name: newProfile.name as string,
         email: newProfile.email as string,
         phone: newProfile.phone as string,
-        isKycVerified: true,
-        kycLevel: 'Tingkat 2 (Terverifikasi Dukcapil)',
+        isKycVerified: false,
+        kycStatus: 'unverified',
+        kycLevel: 'Level 1 (Terdaftar)',
+        role: 'user',
         referralCode: newProfile.referralCode as string,
-        referralBonus: 10000,
+        referralBonus: 0,
         balanceIdr: initialBalance,
-        goldHoldingsGram: 12.5,
+        goldHoldingsGram: 0,
         biometricEnabled: true,
         pinSet: true,
+        pinCode: '123456',
         signupBonusReceived: bonusGiven,
         dailyProfitEarnedTotal: 0,
         lastDailyProfitClaimDate: '',

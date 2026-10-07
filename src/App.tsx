@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { BottomTabBar } from './components/BottomTabBar';
 import { HomeScreen } from './components/screens/HomeScreen';
-import { PortfolioScreen } from './components/screens/PortfolioScreen';
+import { PaketSpesialScreen } from './components/screens/PaketSpesialScreen';
 import { TradeScreen } from './components/screens/TradeScreen';
 import { WalletScreen } from './components/screens/WalletScreen';
 import { HistoryScreen } from './components/screens/HistoryScreen';
@@ -139,6 +139,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [activeModal, setActiveModal] = useState<ActiveModalType>(null);
+  const [selectedEmiratesTier, setSelectedEmiratesTier] = useState<'bronze' | 'gold' | 'platinum'>('gold');
   const [certModalMode, setCertModalMode] = useState<'sertifikat' | 'cetak_fisik'>('sertifikat');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
@@ -155,9 +156,21 @@ export default function App() {
       if (fbUser && fbUser.email) {
         setIsAuthenticated(true);
         localStorage.setItem('nusantaragold_authenticated', 'true');
+        localStorage.setItem('indogold_authenticated', 'true');
         try {
           const profile = await syncUserProfile(fbUser);
-          setUser(profile);
+          const cleanEmail = extractCleanEmail(fbUser.email);
+          const vaultAcc = cleanEmail ? findRegisteredAccount(cleanEmail) : null;
+          if (vaultAcc && vaultAcc.userProfile) {
+            setUser({
+              ...vaultAcc.userProfile,
+              ...profile,
+              balanceIdr: vaultAcc.userProfile.balanceIdr,
+              goldHoldingsGram: vaultAcc.userProfile.goldHoldingsGram,
+            });
+          } else {
+            setUser(profile);
+          }
         } catch (err) {
           console.warn('Sync profile fallback:', err);
         }
@@ -166,7 +179,7 @@ export default function App() {
         const isAuthSaved = 
           localStorage.getItem('nusantaragold_authenticated') === 'true' || 
           localStorage.getItem('indogold_authenticated') === 'true';
-        const savedUserStr = localStorage.getItem('indogold_user') || localStorage.getItem('nusantaragold_user');
+        const savedUserStr = localStorage.getItem('nusantaragold_user') || localStorage.getItem('indogold_user');
 
         if (isAuthSaved && savedUserStr) {
           try {
@@ -176,24 +189,10 @@ export default function App() {
               if (account) {
                 // Account is confirmed in registered vault
                 setIsAuthenticated(true);
-                setUser((prev) => {
-                  const safeName = (parsed.name && typeof parsed.name === 'string' && parsed.name.trim()) || account.userProfile.name || prev.name || 'Investor NusantaraGold';
-                  const safeBal = (parsed.balanceIdr !== undefined && !isNaN(Number(parsed.balanceIdr)))
-                    ? Number(parsed.balanceIdr)
-                    : (account.userProfile.balanceIdr ?? 0);
-                  const safeGold = (parsed.goldHoldingsGram !== undefined && !isNaN(Number(parsed.goldHoldingsGram)))
-                    ? Number(parsed.goldHoldingsGram)
-                    : (account.userProfile.goldHoldingsGram ?? 0);
-
-                  return {
-                    ...prev,
-                    ...account.userProfile,
-                    ...parsed,
-                    name: safeName,
-                    balanceIdr: safeBal,
-                    goldHoldingsGram: safeGold,
-                  };
-                });
+                setUser(account.userProfile);
+                if (account.transactions && account.transactions.length > 0) {
+                  setTransactions(account.transactions);
+                }
                 setIsAuthChecking(false);
                 return;
               }
@@ -679,36 +678,38 @@ export default function App() {
     const currentFbUser = auth.currentUser;
 
     if (isNewRegistration) {
-      // Periksa apakah ada data pendaftaran KYC yang baru saja diinput
-      const existingVault = findRegisteredAccount(email);
-      const vaultProfile = existingVault?.userProfile;
-
       const newUserProfile: UserAccount = {
         name,
         email,
         phone: phone || '+62 812-3456-7890',
-        balanceIdr: bonusAmount,
-        goldHoldingsGram: 0,
+        balanceIdr: bonusAmount, // Tepat Rp 20.000 atau Rp 30.000 (jika referral)
+        goldHoldingsGram: 0,     // 0 gram emas untuk pengguna baru
         dailyProfitEarnedTotal: 0,
         referralCode: `IG${Math.floor(100000 + Math.random() * 900000)}`,
         referralCount: 0,
         referralBonus: 0,
         referredBy: referralCodeUsed?.trim().toUpperCase(),
-        // Status KYC pendaftaran: pending verifikasi admin
-        isKycVerified: vaultProfile ? vaultProfile.isKycVerified : false,
-        kycStatus: vaultProfile?.kycStatus || 'pending',
-        kycLevel: vaultProfile?.kycLevel || 'Menunggu Verifikasi Admin',
-        kycData: vaultProfile?.kycData,
+        isKycVerified: false,
+        kycStatus: 'unverified',
+        kycLevel: 'Level 1 (Terdaftar)',
         biometricEnabled: true,
         signupBonusReceived: true,
         pinSet: true,
-        pinCode: initialPin || '123456'
+        pinCode: initialPin || '123456',
+        role: 'user'
       };
 
       setUser(newUserProfile);
       setTransactions(newTransactionsList);
 
-      // Save to local vault immediately so user can log back in anytime on this origin
+      localStorage.setItem('indogold_user', JSON.stringify(newUserProfile));
+      localStorage.setItem('nusantaragold_user', JSON.stringify(newUserProfile));
+      localStorage.setItem('indogold_authenticated', 'true');
+      localStorage.setItem('nusantaragold_authenticated', 'true');
+      localStorage.setItem('indogold_last_email', email);
+      localStorage.setItem('nusantaragold_last_email', email);
+
+      // Save to local vault & Firestore immediately so user can log back in anytime on any session
       saveRegisteredAccountRecord({
         email,
         password: passwordUsed || '123456',
@@ -739,10 +740,16 @@ export default function App() {
       showToast(`Selamat datang ${name}! Saldo Anda telah terisi ${bonusDescriptions.join(' + ')} (Total Rp ${bonusAmount.toLocaleString('id-ID')})!`);
     } else {
       // Existing user login
-      if (restoredProfile) {
-        setUser(restoredProfile);
+      const cleanEmail = extractCleanEmail(email);
+      const vaultAcc = cleanEmail ? findRegisteredAccount(cleanEmail) : null;
+      const targetProfile = restoredProfile || vaultAcc?.userProfile;
+
+      if (targetProfile) {
+        setUser(targetProfile);
         if (restoredTransactions && restoredTransactions.length > 0) {
           setTransactions(restoredTransactions);
+        } else if (vaultAcc?.transactions && vaultAcc.transactions.length > 0) {
+          setTransactions(vaultAcc.transactions);
         }
       } else if (currentFbUser) {
         try {
@@ -752,25 +759,27 @@ export default function App() {
           console.warn('Error syncing profile from auth success:', err);
         }
       } else {
-        const found = findRegisteredAccount(email);
-        if (found) {
-          setUser(found.userProfile);
-          if (found.transactions && found.transactions.length > 0) {
-            setTransactions(found.transactions);
-          }
-        } else {
-          setUser((prev) => ({
-            ...prev,
-            email,
-            name: name || prev.name,
-          }));
-        }
+        setUser((prev) => ({
+          ...prev,
+          email,
+          name: name || prev.name,
+        }));
       }
-      showToast(`Selamat datang kembali di NusantaraGold, ${name}!`);
+
+      const activeProfile = targetProfile || user;
+      localStorage.setItem('indogold_user', JSON.stringify(activeProfile));
+      localStorage.setItem('nusantaragold_user', JSON.stringify(activeProfile));
+      localStorage.setItem('indogold_authenticated', 'true');
+      localStorage.setItem('nusantaragold_authenticated', 'true');
+      localStorage.setItem('indogold_last_email', email);
+      localStorage.setItem('nusantaragold_last_email', email);
+
+      showToast(`Selamat datang kembali di NusantaraGold, ${name || activeProfile.name}!`);
     }
 
     setIsAuthenticated(true);
     localStorage.setItem('indogold_authenticated', 'true');
+    localStorage.setItem('nusantaragold_authenticated', 'true');
     setShowAuthModal(false);
     setCurrentTab('beranda');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -790,12 +799,13 @@ export default function App() {
     setFirebaseUser(null);
     setIsAuthenticated(false);
     localStorage.setItem('indogold_authenticated', 'false');
-    setAuthDefaultTab('register');
+    localStorage.setItem('nusantaragold_authenticated', 'false');
+    setAuthDefaultTab('login');
     setShowAuthModal(false);
     setActiveActionFlow(null);
     setActiveModal(null);
     window.scrollTo({ top: 0, behavior: 'instant' });
-    showToast('Anda telah keluar dari sesi. Silakan mendaftar akun baru (Bonus s.d Rp 30.000) atau masuk.');
+    showToast('Anda telah keluar dari sesi. Silakan masuk kembali dengan email dan kata sandi Anda.');
   };
 
   // Dedicated Isolated Admin Portal (Accessible via /admin, ?admin=true, or secret shortcut)
@@ -929,7 +939,10 @@ export default function App() {
                 onOpenProofTransfer={() => setActiveModal('proof_transfer')}
                 onOpenPromoKit={() => setActiveModal('promo_kit')}
                 onOpenTransferEmas={() => setActiveModal('transfer_emas')}
-                onOpenEmiratesPackages={() => setActiveModal('emirates_packages')}
+                onOpenEmiratesPackages={(tier) => {
+                  if (tier) setSelectedEmiratesTier(tier);
+                  setActiveModal('emirates_packages');
+                }}
                 onOpenHelp={() => setActiveModal('help')}
                 onOpenNotifications={() => setShowNotifications(true)}
               />
@@ -938,20 +951,24 @@ export default function App() {
 
           {!activeActionFlow && currentTab === 'portofolio' && (
             <motion.div
-              key="portofolio"
+              key="paket-spesial"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
             >
-              <PortfolioScreen
+              <PaketSpesialScreen
                 user={user}
-                onStartTrade={handleStartTrade}
-                onOpenCertificate={() => {
-                  setCertModalMode('sertifikat');
+                onActivatePackage={handleActivatePackage}
+                onGoToDeposit={() => {
+                  handleStartWallet('deposit');
+                }}
+                onOpenCertificate={(mode) => {
+                  setCertModalMode(mode || 'sertifikat');
                   setActiveModal('certificate');
                 }}
                 onClaimDailyProfit={handleClaimDailyProfit}
+                onStartTrade={handleStartTrade}
                 onShowToast={showToast}
               />
             </motion.div>
@@ -1037,6 +1054,7 @@ export default function App() {
       <ActiveModals
         activeModal={activeModal}
         certModalMode={certModalMode}
+        initialPackageTier={selectedEmiratesTier}
         onClose={() => setActiveModal(null)}
         user={user}
         onUpdateUser={handleUpdateUser}
