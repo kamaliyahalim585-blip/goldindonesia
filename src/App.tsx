@@ -937,7 +937,6 @@ export default function App() {
                   setActiveModal('certificate');
                 }}
                 onOpenProofTransfer={() => setActiveModal('proof_transfer')}
-                onOpenPromoKit={() => setActiveModal('promo_kit')}
                 onOpenTransferEmas={() => setActiveModal('transfer_emas')}
                 onOpenEmiratesPackages={(tier) => {
                   if (tier) setSelectedEmiratesTier(tier);
@@ -1010,7 +1009,6 @@ export default function App() {
                 onOpenBankModal={() => setActiveModal('bank')}
                 onOpenKycModal={() => setActiveModal('kyc')}
                 onOpenProofTransfer={() => setActiveModal('proof_transfer')}
-                onOpenPromoKit={() => setActiveModal('promo_kit')}
               />
             </motion.div>
           )}

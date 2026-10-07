@@ -25,7 +25,6 @@ import { GoldCertificateModal } from './GoldCertificateModal';
 import { ProofTransferModal } from './ProofTransferModal';
 import { PinVerificationModal } from './PinVerificationModal';
 import { LiveChatModal } from './modals/LiveChatModal';
-import { PromoKitModal } from './modals/PromoKitModal';
 import { TransferEmasModal } from './modals/TransferEmasModal';
 import { EmiratesPackagesModal } from './modals/EmiratesPackagesModal';
 import { BASE_BUY_PRICE } from '../data/mockData';
@@ -40,7 +39,6 @@ export type ActiveModalType =
   | 'kyc' 
   | 'profile'
   | 'proof_transfer'
-  | 'promo_kit'
   | 'transfer_emas'
   | 'emirates_packages'
   | null;
@@ -109,17 +107,6 @@ export const ActiveModals: React.FC<ActiveModalsProps> = ({
           onUpdateUser(updated);
           if (onTransferEmas) onTransferEmas(updated, newTx);
         }}
-        onShowToast={onShowToast}
-      />
-    );
-  }
-
-  {/* Modul Pusat Bahan Promosi & Bukti WD */}
-  if (activeModal === 'promo_kit') {
-    return (
-      <PromoKitModal
-        onClose={onClose}
-        user={user}
         onShowToast={onShowToast}
       />
     );

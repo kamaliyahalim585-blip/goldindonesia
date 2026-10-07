@@ -41,7 +41,6 @@ interface AccountScreenProps {
   onOpenBankModal?: () => void;
   onOpenKycModal?: () => void;
   onOpenProofTransfer?: () => void;
-  onOpenPromoKit?: () => void;
 }
 
 export const AccountScreen: React.FC<AccountScreenProps> = ({
@@ -55,8 +54,7 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
   onOpenHelpModal,
   onOpenBankModal,
   onOpenKycModal,
-  onOpenProofTransfer,
-  onOpenPromoKit
+  onOpenProofTransfer
 }) => {
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [biometric, setBiometric] = useState(user.biometricEnabled);
@@ -352,47 +350,6 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
           <span className="text-[#D4AF37] font-semibold font-mono">
             Total Bonus Diterima: +{formatIDR((user.referralCount || 3) * 10000)}
           </span>
-        </div>
-      </section>
-
-      {/* 4b. Pusat Bahan Promosi & Bukti WD (Kit Marketing Lengkap) */}
-      <section className="relative rounded-2xl bg-gradient-to-r from-[#241E15] via-[#1B1712] to-[#241E15] border border-[#D4AF37]/50 p-4 sm:p-5 overflow-hidden shadow-xl">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 p-0.5 shadow-md shrink-0">
-              <div className="w-full h-full rounded-[14px] bg-[#141210] flex items-center justify-center text-amber-400">
-                <Sparkles className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#D4AF37]">Pusat Bahan Promosi & Bukti WD</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40">
-                  Rp 4 Juta / 7 Minggu
-                </span>
-              </div>
-              <p className="text-[11px] text-[#A0988C] mt-0.5">
-                Struk transfer bank resmi, infografis kelebihan aplikasi & teks broadcast siap screenshot
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3.5 flex items-center justify-between p-3 rounded-xl bg-[#0F0E0D] border border-[#2E2820]">
-          <div className="text-xs">
-            <span className="text-[#A0988C] block text-[10px]">Bukti Pencairan Rutin:</span>
-            <strong className="text-emerald-400 font-mono">4 Siklus Terverifikasi (Total Rp 16.000.000)</strong>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (onOpenPromoKit) onOpenPromoKit();
-            }}
-            className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] text-slate-950 font-bold text-xs hover:brightness-110 transition flex items-center gap-1.5 shadow-md cursor-pointer"
-          >
-            <span>Buka Bahan Promosi</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
         </div>
       </section>
 

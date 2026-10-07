@@ -48,7 +48,6 @@ interface HomeScreenProps {
   onOpenKyc?: () => void;
   onOpenCertificate?: (mode?: 'sertifikat' | 'cetak_fisik') => void;
   onOpenProofTransfer?: () => void;
-  onOpenPromoKit?: () => void;
   onOpenTransferEmas?: () => void;
   onOpenEmiratesPackages?: (tier?: 'bronze' | 'gold' | 'platinum') => void;
   onOpenHelp?: () => void;
@@ -66,7 +65,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenKyc,
   onOpenCertificate,
   onOpenProofTransfer,
-  onOpenPromoKit,
   onOpenTransferEmas,
   onOpenEmiratesPackages,
   onOpenHelp,

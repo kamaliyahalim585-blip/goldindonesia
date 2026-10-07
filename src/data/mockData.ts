@@ -4,9 +4,7 @@ export const APP_IMAGES = {
   logo: '/nusantaragold_logo.jpg',
   auth_hero: 'https://images.unsplash.com/photo-1594970351817-5eb9a5728fa0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjBsdXh1cnklMjB0ZXh0dXJlJTIwYmFja2dyb3VuZCUyMGdvbGQlMjBkdXN0fGVufDB8fHx8MTc4OTI2MzcwNHww&ixlib=rb-4.1.0&q=85',
   profile_banner: 'https://images.unsplash.com/photo-1762463176312-1757d5125c85?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODR8MHwxfHNlYXJjaHwxfHxnb2xkJTIwYmFyJTIwc3RhY2slMjBwcmVtaXVtfGVufDB8fHx8MTc4OTI2MzcxMXww&ixlib=rb-4.1.0&q=85',
-  empty_portfolio: 'https://images.unsplash.com/photo-1762463176312-1757d5125c85?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODR8MHwxfHNlYXJjaHwxfHxnb2xkJTIwYmFyJTIwc3RhY2slMjBwcmVtaXVtfGVufDB8fHx8MTc4OTI2MzcxMXww&ixlib=rb-4.1.0&q=85',
-  promo_withdrawal_proof: '/src/assets/images/promo_withdrawal_proof_1790036024134.jpg',
-  promo_kelebihan_app: '/src/assets/images/promo_kelebihan_app_1790036035986.jpg'
+  empty_portfolio: 'https://images.unsplash.com/photo-1762463176312-1757d5125c85?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODR8MHwxfHNlYXJjaHwxfHxnb2xkJTIwYmFyJTIwc3RhY2slMjBwcmVtaXVtfGVufDB8fHx8MTc4OTI2MzcxMXww&ixlib=rb-4.1.0&q=85'
 };
 
 export const INITIAL_USER: UserAccount = {
