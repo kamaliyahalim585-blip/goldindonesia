@@ -13,7 +13,7 @@ import { TransactionReceiptModal } from './components/TransactionReceiptModal';
 import { NotificationsModal } from './components/NotificationsModal';
 import { ActiveModals, ActiveModalType } from './components/ActiveModals';
 import { InstallPromptBanner } from './components/InstallPromptBanner';
-import { INITIAL_USER, INITIAL_TRANSACTIONS, formatIDR } from './data/mockData';
+import { INITIAL_USER, INITIAL_TRANSACTIONS, formatIDR, formatTransactionFullDate } from './data/mockData';
 import { ScreenTab, TradeType, WalletActionType, Transaction, UserAccount, EmiratesPackage } from './types';
 import { CheckCircle2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -473,7 +473,7 @@ export default function App() {
       category: 'deposit',
       title: 'Dividen Profit Harian 3% (Daily Yield)',
       amountIdr: amountIdr,
-      date: 'Hari ini, Baru saja',
+      date: formatTransactionFullDate({ timestamp: Date.now() }),
       timestamp: Date.now(),
       status: 'Approved',
       paymentMethod: 'NusantaraGold 3% Daily Yield Vault',
@@ -524,7 +524,7 @@ export default function App() {
       title: `Investasi ${pkg.name} (${pkg.goldBrand} ${pkg.goldGrams}g)`,
       amountIdr: pkg.priceIdr,
       goldGrams: pkg.goldGrams,
-      date: 'Hari ini, Baru saja',
+      date: formatTransactionFullDate({ timestamp: Date.now() }),
       timestamp: Date.now(),
       status: 'Approved',
       paymentMethod: 'Saldo Kas Platform',
@@ -537,7 +537,7 @@ export default function App() {
       category: 'deposit',
       title: `Bonus Cashback ${pkg.bonusPercent}% (${pkg.name})`,
       amountIdr: pkg.bonusAmountIdr,
-      date: 'Hari ini, Baru saja',
+      date: formatTransactionFullDate({ timestamp: Date.now() + 1 }),
       timestamp: Date.now() + 1,
       status: 'Approved',
       paymentMethod: 'Emirates Gold Reward Cashback',
@@ -620,7 +620,7 @@ export default function App() {
         category: 'deposit',
         title: 'Bonus Pendaftaran Pengguna Baru',
         amountIdr: 20000,
-        date: 'Hari ini, Baru saja',
+        date: formatTransactionFullDate({ timestamp: Date.now() }),
         timestamp: Date.now(),
         status: 'Approved',
         paymentMethod: 'NusantaraGold Welcome Bonus',
@@ -638,7 +638,7 @@ export default function App() {
           category: 'deposit',
           title: `Bonus Referral Kode [${referralCodeUsed.trim().toUpperCase()}]`,
           amountIdr: 10000,
-          date: 'Hari ini, Baru saja',
+          date: formatTransactionFullDate({ timestamp: Date.now() + 1 }),
           timestamp: Date.now() + 1,
           status: 'Approved',
           paymentMethod: 'NusantaraGold Referral Program',

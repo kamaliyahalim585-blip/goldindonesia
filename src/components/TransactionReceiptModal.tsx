@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Check, Copy, ShieldCheck, Download, Clock, AlertCircle, Printer, Award } from 'lucide-react';
+import { X, Check, Copy, ShieldCheck, Download, Clock, AlertCircle, Printer, Award, Calendar } from 'lucide-react';
 import { Transaction } from '../types';
-import { formatIDR, formatGrams } from '../data/mockData';
+import { formatIDR, formatGrams, formatTransactionFullDate } from '../data/mockData';
 import { generateTransactionReceiptPdf } from '../utils/pdfGenerator';
 
 interface TransactionReceiptModalProps {
@@ -115,9 +115,12 @@ export const TransactionReceiptModal: React.FC<TransactionReceiptModalProps> = (
 
           {/* Details list */}
           <div className="space-y-2.5 px-1">
-            <div className="flex justify-between">
-              <span className="text-[#9E978E]">Waktu Transaksi</span>
-              <span className="text-[#F7F5F2]">{transaction.date}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-[#9E978E]">Tanggal & Waktu</span>
+              <span className="text-[#F7F5F2] flex items-center gap-1 font-mono">
+                <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
+                {formatTransactionFullDate(transaction)}
+              </span>
             </div>
 
             {transaction.brandName && (

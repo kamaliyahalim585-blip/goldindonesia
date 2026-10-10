@@ -7,7 +7,8 @@ import {
   Search, 
   Filter, 
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Calendar
 } from 'lucide-react';
 import { Transaction, TransactionCategory, ScreenTab } from '../../types';
 import { 
@@ -15,7 +16,8 @@ import {
   formatIDR, 
   formatIDRNumberOnly, 
   formatGrams, 
-  formatGramsNumberOnly 
+  formatGramsNumberOnly,
+  formatTransactionFullDate
 } from '../../data/mockData';
 
 interface HistoryScreenProps {
@@ -200,8 +202,11 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
                         {tx.title}
                       </h4>
                     </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-[#A0988C]">{tx.date}</span>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="text-[10px] text-[#A0988C] flex items-center gap-1 font-mono">
+                        <Calendar className="w-3 h-3 text-[#D4AF37]/80 shrink-0" />
+                        <span>{formatTransactionFullDate(tx)}</span>
+                      </span>
                       {tx.goldGrams && (
                         <span className="text-[10px] text-amber-400 font-mono font-bold bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-500/30 tabular-nums">
                           {formatGramsNumberOnly(tx.goldGrams)} gr

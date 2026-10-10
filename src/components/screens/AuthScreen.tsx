@@ -18,7 +18,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import nusantaragoldLogo from '../../assets/images/nusantaragold_logo_1791089607884.jpg';
-import { APP_IMAGES, INITIAL_USER, INITIAL_TRANSACTIONS } from '../../data/mockData';
+import { APP_IMAGES, INITIAL_USER, INITIAL_TRANSACTIONS, formatTransactionFullDate } from '../../data/mockData';
 import { 
   auth, 
   googleProvider, 
@@ -209,7 +209,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         category: 'deposit',
         title: 'Bonus Pendaftaran Pengguna Baru',
         amountIdr: 20000,
-        date: 'Hari ini, Baru saja',
+        date: formatTransactionFullDate({ timestamp: Date.now() }),
         timestamp: Date.now(),
         status: 'Approved',
         paymentMethod: 'NusantaraGold Welcome Bonus',
@@ -224,7 +224,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         category: 'deposit',
         title: `Bonus Referral Kode [${regReferral.trim().toUpperCase()}]`,
         amountIdr: 10000,
-        date: 'Hari ini, Baru saja',
+        date: formatTransactionFullDate({ timestamp: Date.now() + 1 }),
         timestamp: Date.now() + 1,
         status: 'Approved',
         paymentMethod: 'NusantaraGold Referral Program',

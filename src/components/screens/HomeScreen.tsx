@@ -23,7 +23,8 @@ import {
   TrendingUp,
   Receipt,
   FileCheck2,
-  ExternalLink
+  ExternalLink,
+  Calendar
 } from 'lucide-react';
 import { UserAccount, ScreenTab, TradeType, WalletActionType, Transaction } from '../../types';
 import { LiveGoldChart } from '../LiveGoldChart';
@@ -33,7 +34,8 @@ import {
   BASE_SELL_PRICE, 
   formatIDRNumberOnly, 
   formatGramsNumberOnly,
-  formatIDR
+  formatIDR,
+  formatTransactionFullDate
 } from '../../data/mockData';
 import goldBarsWallpaper from '../../assets/images/gold_bars_bg_1789520085299.jpg';
 
@@ -631,8 +633,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                           {tx.status === 'Approved' ? 'Berhasil' : tx.status === 'Pending' ? 'Diproses' : 'Ditolak'}
                         </span>
                       </div>
-                      <span className="text-[10px] text-[#8C857B] block">
-                        {tx.date}
+                      <span className="text-[10px] text-[#8C857B] flex items-center gap-1 font-mono mt-0.5">
+                        <Calendar className="w-3 h-3 text-[#D4AF37]/80 shrink-0" />
+                        <span>{formatTransactionFullDate(tx)}</span>
                       </span>
                     </div>
                   </div>

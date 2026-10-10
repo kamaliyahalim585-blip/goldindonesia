@@ -17,7 +17,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Transaction, UserAccount } from '../types';
-import { OFFICIAL_DEPOSIT_METHODS, formatIDR, formatIDRNumberOnly } from '../data/mockData';
+import { OFFICIAL_DEPOSIT_METHODS, formatIDR, formatIDRNumberOnly, formatTransactionFullDate } from '../data/mockData';
 
 interface ProofTransferModalProps {
   user: UserAccount;
@@ -229,7 +229,7 @@ export const ProofTransferModal: React.FC<ProofTransferModalProps> = ({
         category: 'deposit',
         title: `Deposit via ${activeMethod.name}`,
         amountIdr: parsedAmount,
-        date: 'Hari ini, Baru saja',
+        date: formatTransactionFullDate({ timestamp: Date.now() }),
         timestamp: Date.now(),
         status: 'Pending',
         paymentMethod: `${activeMethod.name} (${activeMethod.accountNumber})`,

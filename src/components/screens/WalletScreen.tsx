@@ -20,7 +20,8 @@ import {
   Share2,
   Lock,
   Unlock,
-  Gift
+  Gift,
+  Globe
 } from 'lucide-react';
 import { Transaction, UserAccount, WalletActionType } from '../../types';
 import { 
@@ -29,7 +30,8 @@ import {
   ALL_INDONESIAN_EWALLETS, 
   FinancialInstitution,
   formatIDR, 
-  formatIDRNumberOnly 
+  formatIDRNumberOnly,
+  formatTransactionFullDate
 } from '../../data/mockData';
 import { ProofTransferModal } from '../ProofTransferModal';
 import { PinVerificationModal } from '../PinVerificationModal';
@@ -71,6 +73,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
   const [showMinWithdrawalNotice, setShowMinWithdrawalNotice] = useState<boolean>(false);
   const [showReferralLockedNotice, setShowReferralLockedNotice] = useState<boolean>(false);
   const [copiedReferral, setCopiedReferral] = useState<boolean>(false);
+  const [copiedDirectLink, setCopiedDirectLink] = useState<boolean>(false);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -81,7 +84,9 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
   const remainingReferralsNeeded = Math.max(0, 10 - currentReferrals);
   const referralProgressPct = Math.min(100, Math.round((currentReferrals / 10) * 100));
 
-  const referralLink = `https://nusantaragold.site/?ref=${user.referralCode || 'NGOLD2026'}`;
+  // Link resmi dengan dan tanpa kode referral
+  const directWebsiteLink = 'https://www.nusantaragold.website/';
+  const referralLink = `https://www.nusantaragold.website/?ref=${user.referralCode || 'NGOLD2026'}`;
 
   const handleCopyReferral = () => {
     navigator.clipboard.writeText(referralLink);
@@ -92,8 +97,20 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
     setTimeout(() => setCopiedReferral(false), 2000);
   };
 
-  const handleShareReferral = () => {
-    const shareText = `Halo! Yuk gabung investasi emas batangan 24K berizin di NusantaraGold. Dapatkan bonus pendaftaran hingga Rp 30.000 dan komisi referral 3%! Daftar melalui link resmi ini: ${referralLink} (Kode Undangan: ${user.referralCode || 'NGOLD2026'})`;
+  const handleCopyDirectLink = () => {
+    navigator.clipboard.writeText(directWebsiteLink);
+    setCopiedDirectLink(true);
+    if (onShowToast) {
+      onShowToast(`Link resmi https://www.nusantaragold.website/ (tanpa kode referral) berhasil disalin!`);
+    }
+    setTimeout(() => setCopiedDirectLink(false), 2000);
+  };
+
+  const handleShareReferral = (withRef: boolean = true) => {
+    const linkToShare = withRef ? referralLink : directWebsiteLink;
+    const shareText = withRef
+      ? `Halo! Yuk gabung investasi emas batangan 24K berizin di NusantaraGold. Dapatkan bonus pendaftaran hingga Rp 30.000 dan komisi referral 3%! Daftar melalui link resmi ini: ${referralLink} (Kode Undangan: ${user.referralCode || 'NGOLD2026'})`
+      : `Halo! Kunjungi website resmi NusantaraGold untuk investasi emas batangan 24K terpercaya dan berizin resmi: ${directWebsiteLink}`;
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
     window.open(url, '_blank');
   };
@@ -200,7 +217,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
         category: 'tarik',
         title: `Penarikan ke ${selectedDestination.name}`,
         amountIdr: parsedAmount,
-        date: 'Hari ini, Baru saja',
+        date: formatTransactionFullDate({ timestamp: Date.now() }),
         timestamp: Date.now(),
         status: 'Pending',
         paymentMethod: `${selectedDestination.name} • ${destinationAccount.trim()}`,
@@ -577,36 +594,45 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
               </div>
             </div>
 
-            {/* Referral Tools Bar: Link Undangan & WhatsApp Share */}
-            <div className="mt-3.5 pt-3 border-t border-[#262018] space-y-2.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[11px] text-[#8C857B]">Link Undangan Resmi:</span>
-                  <span className="px-2 py-0.5 rounded-lg bg-[#1F1B16] border border-[#3E3424] font-mono text-[11px] font-bold text-amber-300 truncate max-w-[210px] sm:max-w-xs">
-                    https://nusantaragold.site/?ref={user.referralCode || 'NGOLD2026'}
-                  </span>
+            {/* Website Link Bar */}
+            <div className="mt-3.5 pt-3 border-t border-[#262018] space-y-3">
+              {/* Link Website Resmi */}
+              <div className="p-3 rounded-xl bg-[#0F0E0D] border border-[#2B231A] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                    <Globe className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-[#A0988C]">Link Website Resmi:</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-950/70 text-emerald-400 border border-emerald-500/30 font-semibold">Tanpa Kode Referral</span>
+                    </div>
+                    <span className="font-mono text-xs font-bold text-[#F3E5AB] truncate block mt-0.5">
+                      {directWebsiteLink}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
                   <button
                     type="button"
-                    onClick={handleCopyReferral}
-                    className="py-1.5 px-3 rounded-xl bg-[#2A2318] hover:bg-[#362C1E] text-amber-300 text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer"
+                    onClick={handleCopyDirectLink}
+                    className="py-1.5 px-3 rounded-lg bg-[#241F18] hover:bg-[#322A20] text-amber-300 text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer border border-[#3E3424]"
                   >
-                    {copiedReferral ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedReferral ? 'Link Tersalin' : 'Salin Link'}</span>
+                    {copiedDirectLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedDirectLink ? 'Tersalin' : 'Salin Website'}</span>
                   </button>
-
                   <button
                     type="button"
-                    onClick={handleShareReferral}
-                    className="py-1.5 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[11px] font-bold hover:brightness-110 transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                    onClick={() => handleShareReferral(false)}
+                    className="py-1.5 px-3 rounded-lg bg-[#1E2922] hover:bg-[#25392D] text-emerald-300 text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer border border-emerald-500/30"
                   >
                     <Share2 className="w-3.5 h-3.5" />
-                    <span>Ajak Teman</span>
+                    <span>Bagikan</span>
                   </button>
                 </div>
               </div>
+
             </div>
           </section>
 
@@ -1031,23 +1057,33 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    handleShareReferral();
+                    handleShareReferral(true);
                     setShowReferralLockedNotice(false);
                   }}
-                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                  className="flex-1 py-3 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
                 >
                   <Share2 className="w-4 h-4" />
-                  <span>Ajak Teman Sekarang</span>
+                  <span>Ajak Teman</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCopyDirectLink();
+                  }}
+                  className="py-3 px-3.5 rounded-xl bg-[#231E18] hover:bg-[#2F2920] border border-[#3E3424] text-xs font-semibold text-amber-300 hover:text-amber-200 transition cursor-pointer text-center flex items-center justify-center gap-1.5"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>{copiedDirectLink ? 'Tersalin' : 'Salin Website'}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     handleCopyReferral();
                   }}
-                  className="py-3 px-3.5 rounded-xl bg-[#231E18] hover:bg-[#2F2920] border border-[#3E3424] text-xs font-semibold text-amber-300 hover:text-amber-200 transition cursor-pointer text-center flex items-center justify-center gap-1.5"
+                  className="py-3 px-3.5 rounded-xl bg-[#1C1814] hover:bg-[#28221B] border border-[#2F271D] text-xs font-semibold text-[#E5E0D8] transition cursor-pointer text-center flex items-center justify-center gap-1.5"
                 >
-                  <Copy className="w-4 h-4" />
-                  <span>Salin Link</span>
+                  <Copy className="w-4 h-4 text-amber-400" />
+                  <span>{copiedReferral ? 'Tersalin' : 'Salin Referral'}</span>
                 </button>
                 <button
                   type="button"

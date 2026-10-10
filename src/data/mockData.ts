@@ -402,6 +402,26 @@ export function formatGramsNumberOnly(grams: number): string {
   });
 }
 
+export function formatTransactionFullDate(tx: Partial<Transaction> | undefined | null): string {
+  if (!tx) return '-';
+  if (tx.timestamp && typeof tx.timestamp === 'number' && !isNaN(tx.timestamp)) {
+    const d = new Date(tx.timestamp);
+    if (!isNaN(d.getTime())) {
+      const dateStr = d.toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+      const timeStr = d.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      return `${dateStr}, ${timeStr} WIB`;
+    }
+  }
+  return tx.date || 'Hari ini';
+}
+
 /**
  * PAKET INVESTASI EMIRATES GOLD 24K RESMI
  * Sesuai ketentuan:

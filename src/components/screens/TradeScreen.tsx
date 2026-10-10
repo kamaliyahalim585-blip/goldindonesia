@@ -11,7 +11,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { GoldBrand, TradeType, Transaction, UserAccount } from '../../types';
-import { GOLD_BRANDS, BASE_BUY_PRICE, BASE_SELL_PRICE, formatIDR, formatGrams } from '../../data/mockData';
+import { GOLD_BRANDS, BASE_BUY_PRICE, BASE_SELL_PRICE, formatIDR, formatGrams, formatTransactionFullDate } from '../../data/mockData';
 
 interface TradeScreenProps {
   user: UserAccount;
@@ -127,7 +127,7 @@ export const TradeScreen: React.FC<TradeScreenProps> = ({
         amountIdr: totalAmountIdr,
         pricePerGram: brandPricePerGram,
         taxOrFee: 0,
-        date: 'Hari ini, Baru saja',
+        date: formatTransactionFullDate({ timestamp: Date.now() }),
         timestamp: Date.now(),
         status: 'Approved',
         paymentMethod: tradeType === 'beli' 

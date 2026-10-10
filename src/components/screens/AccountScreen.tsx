@@ -19,7 +19,8 @@ import {
   LogIn,
   AlertTriangle,
   Headphones,
-  MessageSquareText
+  MessageSquareText,
+  Globe
 } from 'lucide-react';
 import { UserAccount } from '../../types';
 import { 
@@ -57,8 +58,12 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
   onOpenProofTransfer
 }) => {
   const [copiedReferral, setCopiedReferral] = useState(false);
+  const [copiedDirectLink, setCopiedDirectLink] = useState(false);
   const [biometric, setBiometric] = useState(user.biometricEnabled);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const directWebsiteLink = 'https://www.nusantaragold.website/';
+  const referralLink = `https://www.nusantaragold.website/?ref=${user.referralCode || 'NGOLD2026'}`;
 
   const safeGoldGrams = (user?.goldHoldingsGram && !isNaN(Number(user.goldHoldingsGram))) ? Number(user.goldHoldingsGram) : 0;
   const safeBalanceIdr = (user?.balanceIdr && !isNaN(Number(user.balanceIdr))) ? Number(user.balanceIdr) : 0;
@@ -80,20 +85,38 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
     setTimeout(() => setCopiedReferral(false), 2000);
   };
 
-  const handleShareReferral = async () => {
-    const text = `Daftar akun NusantaraGold menggunakan kode referral saya [${user.referralCode}] dan dapatkan bonus saldo gratis hingga Rp 30.000 untuk mulai investasi emas 24K!`;
+  const handleCopyDirectLink = () => {
+    navigator.clipboard.writeText(directWebsiteLink);
+    setCopiedDirectLink(true);
+    setTimeout(() => setCopiedDirectLink(false), 2000);
+  };
+
+  const handleShareReferral = async (withRef: boolean = true) => {
+    const text = withRef
+      ? `Daftar akun NusantaraGold menggunakan kode referral saya [${user.referralCode}] dan dapatkan bonus saldo gratis hingga Rp 30.000 untuk mulai investasi emas 24K! Kunjungi: ${referralLink}`
+      : `Kunjungi website resmi NusantaraGold untuk investasi emas batangan 24K berizin resmi: ${directWebsiteLink}`;
+    const url = withRef ? referralLink : directWebsiteLink;
+
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Bonus Investasi Emas NusantaraGold 24K',
+          title: 'Investasi Emas NusantaraGold 24K',
           text,
-          url: window.location.origin
+          url
         });
       } catch (e) {
-        handleCopyReferral();
+        if (withRef) {
+          handleCopyReferral();
+        } else {
+          handleCopyDirectLink();
+        }
       }
     } else {
-      handleCopyReferral();
+      if (withRef) {
+        handleCopyReferral();
+      } else {
+        handleCopyDirectLink();
+      }
     }
   };
 
@@ -308,39 +331,88 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
           Bagikan kode referral Anda ke rekan atau kerabat. Pengguna baru otomatis menerima <strong className="text-amber-300">Rp 20.000</strong> saat mendaftar, dan tambahan <strong className="text-emerald-400">+Rp 10.000</strong> jika memasukkan kode Anda (Total <strong className="text-[#F3E5AB]">Rp 30.000</strong>). Anda juga menerima bonus <strong className="text-[#D4AF37]">Rp 10.000</strong> per teman terdaftar!
         </div>
 
-        {/* Referral Copy Box */}
-        <div className="mt-3 flex items-center justify-between p-3 rounded-xl bg-[#1A1814] border border-[#3A3224]">
-          <div>
-            <span className="text-[9px] text-[#8C857B] uppercase tracking-wider block">Kode Referral Anda</span>
-            <span className="font-mono text-base font-bold tracking-widest text-[#F7F5F2] mt-0.5 block">
-              {user.referralCode}
-            </span>
+        {/* Direct Official Link & Referral Links */}
+        <div className="mt-3 space-y-2.5">
+          {/* Direct Website Link without referral code */}
+          <div className="p-3 rounded-xl bg-[#0F0E0D] border border-[#2B231A] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-[#2E2616] border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shrink-0">
+                <Globe className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-[#8C857B]">Link Resmi:</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-950/70 text-emerald-400 border border-emerald-500/30 font-semibold">Tanpa Kode Referral</span>
+                </div>
+                <span className="font-mono text-xs font-bold text-[#F3E5AB] truncate block mt-0.5">
+                  {directWebsiteLink}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
+              <button
+                type="button"
+                onClick={handleCopyDirectLink}
+                className="py-1.5 px-3 rounded-lg bg-[#241F18] border border-[#3D3528] text-xs font-semibold text-amber-300 hover:bg-[#D4AF37] hover:text-[#0F0E0D] transition flex items-center gap-1 cursor-pointer"
+              >
+                {copiedDirectLink ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-300 font-bold">Tersalin</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Salin Website</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleShareReferral(false)}
+                className="py-1.5 px-3 rounded-lg bg-[#1E2922] border border-emerald-500/30 text-xs font-semibold text-emerald-300 hover:bg-emerald-500 hover:text-[#0F0E0D] transition flex items-center gap-1 cursor-pointer"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Bagikan</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopyReferral}
-              className="py-1.5 px-3 rounded-lg bg-[#2E2616] border border-[#4A4033] text-[#F3E5AB] hover:bg-[#D4AF37] hover:text-[#0F0E0D] transition flex items-center gap-1.5 text-xs font-medium cursor-pointer"
-            >
-              {copiedReferral ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-300 font-bold">Tersalin</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>Salin Kode</span>
-                </>
-              )}
-            </button>
-            <button
-              onClick={handleShareReferral}
-              className="py-1.5 px-3 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] text-[#0F0E0D] font-bold hover:opacity-95 transition flex items-center gap-1.5 text-xs cursor-pointer shadow-sm"
-            >
-              <Share2 className="w-3.5 h-3.5 stroke-[2.2]" />
-              <span>Bagikan</span>
-            </button>
+          {/* Referral Copy Box */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-[#1A1814] border border-[#3A3224]">
+            <div>
+              <span className="text-[9px] text-[#8C857B] uppercase tracking-wider block">Kode Referral Anda</span>
+              <span className="font-mono text-base font-bold tracking-widest text-[#F7F5F2] mt-0.5 block">
+                {user.referralCode}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCopyReferral}
+                className="py-1.5 px-3 rounded-lg bg-[#2E2616] border border-[#4A4033] text-[#F3E5AB] hover:bg-[#D4AF37] hover:text-[#0F0E0D] transition flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+              >
+                {copiedReferral ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-300 font-bold">Tersalin</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span>Salin Kode</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => handleShareReferral(true)}
+                className="py-1.5 px-3 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] text-[#0F0E0D] font-bold hover:opacity-95 transition flex items-center gap-1.5 text-xs cursor-pointer shadow-sm"
+              >
+                <Share2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                <span>Ajak Teman</span>
+              </button>
+            </div>
           </div>
         </div>
 
